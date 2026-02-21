@@ -27,6 +27,13 @@ React + Vite + Clerk + Tailwind frontend for the Hot Leads platform. Dashboard t
 npm run build
 ```
 
-Output is in `dist/`. Deploy to Vercel with build command `npm run build` and output directory `dist`.
+Output is in `dist/`.
+
+## Deploy (Vercel)
+
+- Build command: `npm run build`
+- Output directory: `dist`
+- Set env vars: `VITE_API_URL` (backend production URL), `VITE_CLERK_PUBLISHABLE_KEY`
+- Configure Clerk redirect URLs for your Vercel domain (e.g. `https://your-app.vercel.app`).
 
 This repository is intended to be used as a **standalone Git repository**. Clone or push it to its own remote (e.g. `github.com/yourorg/hotlead-frontend`).
