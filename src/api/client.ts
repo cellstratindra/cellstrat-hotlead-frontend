@@ -1,6 +1,6 @@
 import type { HotLead, SearchResponse } from '../types/leads'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_BASE = 'https://hotlead-backend-926771612705.us-central1.run.app'
 
 /** Normalize a single lead from API so all fields are defined (backend sends snake_case). */
 function normalizeLead(raw: Record<string, unknown>): HotLead {
