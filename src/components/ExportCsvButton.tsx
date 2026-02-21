@@ -21,13 +21,18 @@ interface ExportCsvButtonProps {
 
 export function ExportCsvButton({ leads }: ExportCsvButtonProps) {
   function handleClick() {
-    const headers = ['name', 'rating', 'review_count', 'phone', 'flagged_keywords', 'enrichment_summary', 'outreach_suggestion']
+    const headers = ['name', 'rating', 'review_count', 'phone', 'reach_band', 'tier', 'estimated_budget_tier', 'flagged_keywords', 'top_complaints', 'top_strengths', 'enrichment_summary', 'outreach_suggestion']
     const rows = leads.map((lead) => [
       escapeCsvCell(lead.name ?? ''),
       String(lead.rating ?? 0),
       String(lead.review_count ?? 0),
       escapeCsvCell(lead.phone ?? ''),
+      escapeCsvCell(lead.reach_band ?? ''),
+      escapeCsvCell(lead.tier ?? ''),
+      escapeCsvCell(lead.estimated_budget_tier ?? ''),
       escapeCsvCell(allFlaggedKeywords(lead)),
+      escapeCsvCell((lead.top_complaints ?? []).join('; ')),
+      escapeCsvCell((lead.top_strengths ?? []).join('; ')),
       escapeCsvCell(lead.enrichment_summary ?? ''),
       escapeCsvCell(lead.outreach_suggestion ?? ''),
     ])

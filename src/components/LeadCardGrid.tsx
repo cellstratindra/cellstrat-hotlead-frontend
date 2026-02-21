@@ -1,0 +1,90 @@
+import { useMemo, useState } from 'react'
+import type { HotLead } from '../types/leads'
+import { LeadCard } from './LeadCard'
+
+type SortKey = 'recommendation_score' | 'rating' | 'review_count' | 'name' | 'tier'
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: 'recommendation_score', label: 'Recommended' },
+  { value: 'rating', label: 'Rating' },
+  { value: 'review_count', label: 'Reviews' },
+  { value: 'name', label: 'Name' },
+  { value: 'tier', label: 'Tier' },
+]
+
+interface LeadCardGridProps {
+  leads: HotLead[]
+  showSort?: boolean
+  /** e.g. "Cardiology in Bangalore" for benchmark label on cards */
+  marketLabel?: string | null
+}
+
+export function LeadCardGrid({ leads, showSort = true, marketLabel }: LeadCardGridProps) {
+  const [sortBy, setSortBy] = useState<SortKey>('recommendation_score')
+  const [order, setOrder] = useState<'asc' | 'desc'>('desc')
+
+  const sortedLeads = useMemo(() => {
+    const arr = [...leads]
+    const getVal = (l: HotLead): string | number => {
+      switch (sortBy) {
+        case 'name':
+          return l.name ?? ''
+        case 'rating':
+          return l.rating ?? 0
+        case 'review_count':
+          return l.review_count ?? 0
+        case 'recommendation_score':
+          return l.recommendation_score ?? 0
+        case 'tier':
+          return l.tier ?? ''
+        default:
+          return 0
+      }
+    }
+    arr.sort((a, b) => {
+      const aVal = getVal(a)
+      const bVal = getVal(b)
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return order === 'asc' ? aVal - bVal : bVal - aVal
+      }
+      const aStr = String(aVal)
+      const bStr = String(bVal)
+      return order === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr)
+    })
+    return arr
+  }, [leads, sortBy, order])
+
+  return (
+    <div className="space-y-4">
+      {showSort && (
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="text-sm text-slate-600">Sort by</label>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortKey)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-[#2563EB] focus:outline-none focus:ring-1 focus:ring-[#2563EB]"
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={order}
+            onChange={(e) => setOrder(e.target.value as 'asc' | 'desc')}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-[#2563EB] focus:outline-none focus:ring-1 focus:ring-[#2563EB]"
+          >
+            <option value="desc">Desc</option>
+            <option value="asc">Asc</option>
+          </select>
+        </div>
+      )}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {sortedLeads.map((lead, i) => (
+          <LeadCard key={lead.place_id || `lead-${i}`} lead={lead} marketLabel={marketLabel} />
+        ))}
+      </div>
+    </div>
+  )
+}

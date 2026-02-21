@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { UserButton } from '@clerk/clerk-react'
 import { exportForCrmUrl, getLeads, type SavedLead } from '../api/client'
 
 const STAGES = ['new', 'contacted', 'meeting_booked', 'qualified', 'nurtured']
@@ -20,15 +19,11 @@ export function MyLeads() {
   }, [stageFilter])
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="mx-auto max-w-4xl">
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link to="/dashboard" className="text-blue-600 hover:underline">Dashboard</Link>
-            <h1 className="text-2xl font-bold text-gray-900">My Leads</h1>
-          </div>
-          <UserButton afterSignOutUrl="/sign-in" />
-        </div>
+    <div className="min-h-screen bg-[#F8FAFC] p-4 sm:p-6">
+      <div className="mx-auto max-w-6xl">
+        <header className="mb-6">
+          <h1 className="text-2xl font-bold text-slate-900">Leads</h1>
+        </header>
         <div className="mb-4 flex flex-wrap items-center gap-4">
           <label className="text-sm text-gray-600">Stage:</label>
           <select
