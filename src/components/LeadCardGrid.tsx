@@ -12,14 +12,24 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'tier', label: 'Tier' },
 ]
 
+/** Lead identity for selection: id for saved leads, place_id for search results */
+export function getLeadSelectId(lead: HotLead): string {
+  const id = (lead as HotLead & { id?: number }).id
+  return id != null ? String(id) : lead.place_id
+}
+
 interface LeadCardGridProps {
   leads: HotLead[]
   showSort?: boolean
   /** e.g. "Cardiology in Bangalore" for benchmark label on cards */
   marketLabel?: string | null
+  /** When set, show checkboxes and allow multi-select */
+  selectedIds?: Set<string>
+  onSelectLead?: (id: string, checked: boolean) => void
 }
 
-export function LeadCardGrid({ leads, showSort = true, marketLabel }: LeadCardGridProps) {
+export function LeadCardGrid({ leads, showSort = true, marketLabel, selectedIds, onSelectLead }: LeadCardGridProps) {
+  const showCheckbox = selectedIds != null && onSelectLead != null
   const [sortBy, setSortBy] = useState<SortKey>('recommendation_score')
   const [order, setOrder] = useState<'asc' | 'desc'>('desc')
 
@@ -82,7 +92,14 @@ export function LeadCardGrid({ leads, showSort = true, marketLabel }: LeadCardGr
       )}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {sortedLeads.map((lead, i) => (
-          <LeadCard key={lead.place_id || `lead-${i}`} lead={lead} marketLabel={marketLabel} />
+          <LeadCard
+            key={lead.place_id || `lead-${i}`}
+            lead={lead}
+            marketLabel={marketLabel}
+            showCheckbox={showCheckbox}
+            selected={showCheckbox ? selectedIds!.has(getLeadSelectId(lead)) : undefined}
+            onToggle={showCheckbox ? (checked) => onSelectLead!(getLeadSelectId(lead), checked) : undefined}
+          />
         ))}
       </div>
     </div>

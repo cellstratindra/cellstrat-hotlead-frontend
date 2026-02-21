@@ -7,6 +7,7 @@ export interface ReviewWithFlags {
 }
 
 export interface HotLead {
+  id?: number | null
   place_id: string
   name: string
   rating: number
@@ -31,6 +32,12 @@ export interface HotLead {
   reason_to_contact?: string | null
   suggested_action?: string | null
   contact_rank?: number | null
+  /** Search relevance: match to query (0–100) */
+  relevance_score?: number | null
+  /** Match band for UI: very_similar | similar | far */
+  match_band?: string | null
+  contact_email?: string | null
+  director_name?: string | null
 }
 
 export interface SearchResponse {
@@ -61,6 +68,12 @@ export interface ReviewChatResponse {
   answer: string
   scope_used?: string | null
   review_count_used?: number | null
+}
+
+export interface CampaignDraftResponse {
+  email_draft: string
+  hook: string
+  linkedin_bullets: string[]
 }
 
 export interface MarketInsightsResponse {

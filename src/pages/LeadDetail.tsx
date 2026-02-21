@@ -16,6 +16,7 @@ import {
 } from '../api/client'
 import type { FeatureOccurrence, ReviewInsightsResponse } from '../types/leads'
 import { sortReviews, type ReviewSortOption } from '../components/ReviewsModal'
+import { PrecallBriefModal } from '../components/PrecallBriefModal'
 
 const STAGES = ['new', 'contacted', 'meeting_booked', 'qualified', 'nurtured']
 type TabKey = 'overview' | 'features'
@@ -44,6 +45,7 @@ export function LeadDetailPage() {
   const [addMeetingText, setAddMeetingText] = useState('')
   const [addMeetingSubmitting, setAddMeetingSubmitting] = useState(false)
   const [expandedMeetingId, setExpandedMeetingId] = useState<number | null>(null)
+  const [precallBriefOpen, setPrecallBriefOpen] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -210,6 +212,13 @@ export function LeadDetailPage() {
               ))}
             </select>
           </p>
+          <button
+            type="button"
+            onClick={() => setPrecallBriefOpen(true)}
+            className="rounded bg-slate-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+          >
+            Pre-call brief
+          </button>
           {(lead.enrichment_summary || lead.outreach_suggestion) && (
             <div className="relative overflow-hidden rounded-xl border border-white/40 bg-white/60 p-4 shadow-sm backdrop-blur-md">
               <span className="inline-block rounded-full bg-[#2563EB]/10 px-2 py-0.5 text-xs font-medium text-[#2563EB]">
@@ -358,6 +367,14 @@ export function LeadDetailPage() {
             ))}
           </ul>
         </div>
+        <PrecallBriefModal
+          open={precallBriefOpen}
+          onClose={() => setPrecallBriefOpen(false)}
+          leadName={lead.name}
+          painPoints={lead.top_complaints ?? []}
+          praise={lead.top_strengths ?? []}
+          hook={lead.outreach_suggestion ?? lead.enrichment_summary ?? ''}
+        />
         </>
         )}
         {activeTab === 'features' && (

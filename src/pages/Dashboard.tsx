@@ -1,13 +1,13 @@
-import { useEffect, useState, type FC } from 'react';
-import { Switch } from '@headlessui/react';
-import { searchLeads, saveLeads, enrichLeads, fetchMarketInsights, getStats, type StatsResponse, type ScoreWeights } from '../api/client';
+import { useEffect, useState, useCallback, type FC } from 'react';
+import { searchLeads, saveLeads, enrichLeads, fetchMarketInsights, getStats, bulkUpdateLeads, type StatsResponse, type ScoreWeights } from '../api/client';
 import type { HotLead, MarketInsightsResponse } from '../types/leads';
-import { LeadCardGrid } from '../components/LeadCardGrid';
+import { LeadCardGrid, getLeadSelectId } from '../components/LeadCardGrid';
 import { ExportCsvButton } from '../components/ExportCsvButton';
+import { CampaignDrawer } from '../components/CampaignDrawer';
+import { LeadDetailsDrawer, type LeadDetailsUpdates } from '../components/LeadDetailsDrawer';
 import { SearchBarWithChips, type SearchChips, type SearchFilters } from '../components/SearchBarWithChips';
 import { useSearchResults } from '../contexts/SearchResultsContext';
 import { X } from 'lucide-react';
-import { LeadPipelineViewTracker } from '../components/LeadPipelineViewTracker';
 
 const DEFAULT_SCORE_WEIGHTS: ScoreWeights = {
   rating_weight: 50, review_count_weight: 25, phone_weight: 15, enrichment_weight: 10,
@@ -42,6 +42,7 @@ const AiPoweredInsights: FC<AiPoweredInsightsProps> = ({ report, onClose, qualif
         <div className="bg-slate-50 rounded-lg p-4">
             <h3 className="font-semibold text-slate-700">Qualification Score</h3>
             <p className="text-5xl font-bold text-blue-600">{qualificationScore}</p>
+            <p className="text-xs text-slate-500 mt-1">Reflects follow-up count and last contact recency for this market set.</p>
         </div>
         <button className="w-full bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition-colors">Generate Insights</button>
       </div>
@@ -61,10 +62,16 @@ export function Dashboard() {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<StatsResponse | null>(null);
-  const [isPipelineView, setIsPipelineView] = useState(true);
   const [showInsights, setShowInsights] = useState(false);
   const [marketReport, setMarketReport] = useState<MarketInsightsResponse | null>(null);
   const [qualificationScore] = useState(8);
+  const [campaignDrawerOpen, setCampaignDrawerOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [leads]);
 
   useEffect(() => {
     getStats().then(setStats).catch(() => setStats(null));
@@ -138,6 +145,46 @@ export function Dashboard() {
     }
   }
 
+  const selectedLeads = leads.filter((l) => selectedIds.has(getLeadSelectId(l)));
+  const selectedSavedIds = selectedLeads
+    .map((l) => (l as HotLead & { id?: number }).id)
+    .filter((id): id is number => id != null);
+  const requireSavedFirst = selectedLeads.length > 0 && selectedSavedIds.length === 0;
+
+  const handleSaveDetails = useCallback(
+    async (updates: LeadDetailsUpdates) => {
+      await bulkUpdateLeads({
+        lead_ids: selectedSavedIds,
+        contact_email: updates.contact_email ?? null,
+        director_name: updates.director_name ?? null,
+        note: updates.note ?? null,
+      });
+      setSelectedIds(new Set());
+    },
+    [selectedSavedIds]
+  );
+
+  async function handleSaveSelectedFirst() {
+    if (selectedLeads.length === 0) return;
+    await saveLeads(
+      selectedLeads,
+      searchChips.city || undefined,
+      searchChips.specialty || undefined,
+      searchChips.region?.trim() || undefined
+    );
+    setSaveMessage(`Saved ${selectedLeads.length} lead(s) to My Leads.`);
+    setSelectedIds(new Set());
+  }
+
+  function handleSelectLead(id: string, checked: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
   return (
     <div className="p-6 bg-slate-50 min-h-full">
       <div className="max-w-screen-xl mx-auto">
@@ -159,6 +206,13 @@ export function Dashboard() {
             />
           <div className="mt-4 pt-4 border-t border-slate-200 flex items-center justify-between">
             <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setCampaignDrawerOpen(true)}
+                  disabled={leads.length === 0}
+                  className="px-4 py-2 text-sm font-medium text-white rounded-lg shadow-sm bg-gradient-to-r from-violet-500 to-blue-600 hover:from-violet-600 hover:to-blue-700 disabled:opacity-50"
+                >
+                  Generate Campaign
+                </button>
                 <ExportCsvButton leads={leads} />
                 <button onClick={handleSaveAll} disabled={saving || leads.length === 0} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700 disabled:opacity-50">
                     {saving ? 'Saving...' : 'Save all'}
@@ -169,15 +223,13 @@ export function Dashboard() {
                 <button onClick={handleGetInsights} disabled={insightsLoading || leads.length === 0} className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-lg shadow-sm hover:bg-orange-600 disabled:opacity-50">
                     {insightsLoading ? 'Getting...' : 'Get Insights'}
                 </button>
-            </div>
-            <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-slate-700">Pipeline View</span>
-                <Switch
-                    checked={isPipelineView}
-                    onChange={setIsPipelineView}
-                    className={`${isPipelineView ? 'bg-blue-600' : 'bg-gray-200'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors`}>
-                    <span className={`${isPipelineView ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`} />
-                </Switch>
+                <button
+                  onClick={() => setDetailsDrawerOpen(true)}
+                  disabled={selectedIds.size === 0}
+                  className="px-4 py-2 text-sm font-medium text-white bg-slate-600 rounded-lg shadow-sm hover:bg-slate-700 disabled:opacity-50"
+                >
+                  Add details {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+                </button>
             </div>
           </div>
         </div>
@@ -190,10 +242,13 @@ export function Dashboard() {
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent mx-auto" />
             <p className="mt-3 text-slate-500">Searching for clinics...</p>
           </div>
-        ) : isPipelineView ? (
-          <LeadPipelineViewTracker leads={leads} />
         ) : (
-          <LeadCardGrid leads={leads} marketLabel={`${searchChips.specialty} in ${searchChips.city}`} />
+          <LeadCardGrid
+            leads={leads}
+            marketLabel={`${searchChips.specialty} in ${searchChips.city}`}
+            selectedIds={selectedIds}
+            onSelectLead={handleSelectLead}
+          />
         )}
 
         {!loading && leads.length === 0 && (
@@ -204,6 +259,15 @@ export function Dashboard() {
         )}
 
         {showInsights && <AiPoweredInsights report={marketReport} onClose={() => setShowInsights(false)} qualificationScore={qualificationScore} />}
+        <CampaignDrawer open={campaignDrawerOpen} onClose={() => setCampaignDrawerOpen(false)} leads={leads} />
+        <LeadDetailsDrawer
+          open={detailsDrawerOpen}
+          onClose={() => setDetailsDrawerOpen(false)}
+          leads={selectedLeads}
+          onSave={handleSaveDetails}
+          requireSavedFirst={requireSavedFirst}
+          onSaveSelectedFirst={selectedLeads.length > 0 ? handleSaveSelectedFirst : undefined}
+        />
       </div>
     </div>
   );

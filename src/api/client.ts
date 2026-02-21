@@ -1,4 +1,5 @@
 import type {
+  CampaignDraftResponse,
   FeatureOccurrence,
   HotLead,
   MarketInsightsResponse,
@@ -49,6 +50,11 @@ function normalizeLead(raw: Record<string, unknown>): HotLead {
     reason_to_contact: raw?.reason_to_contact != null ? String(raw.reason_to_contact) : null,
     suggested_action: raw?.suggested_action != null ? String(raw.suggested_action) : null,
     contact_rank: raw?.contact_rank != null ? Number(raw.contact_rank) : null,
+    relevance_score: raw?.relevance_score != null ? Number(raw.relevance_score) : null,
+    match_band: raw?.match_band != null ? String(raw.match_band) : null,
+    id: raw?.id != null ? Number(raw.id) : null,
+    contact_email: raw?.contact_email != null ? String(raw.contact_email) : null,
+    director_name: raw?.director_name != null ? String(raw.director_name) : null,
   }
 }
 
@@ -106,6 +112,26 @@ export async function fetchReviewSummary(
     reviews_summary: data?.reviews_summary ?? '',
     negative_keywords: data?.negative_keywords ?? [],
     question_summary: data?.question_summary ?? null,
+  }
+}
+
+export async function fetchCampaignDraft(lead: HotLead): Promise<CampaignDraftResponse> {
+  const res = await fetch(`${API_BASE}/api/leads/campaign-draft`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lead }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }))
+    const detail = err?.detail
+    const message = typeof detail === 'string' ? detail : res.statusText
+    throw new Error(message || `Campaign draft failed: ${res.status}`)
+  }
+  const data = (await res.json()) as CampaignDraftResponse
+  return {
+    email_draft: data?.email_draft ?? '',
+    hook: data?.hook ?? '',
+    linkedin_bullets: Array.isArray(data?.linkedin_bullets) ? data.linkedin_bullets : [],
   }
 }
 
@@ -199,6 +225,8 @@ export interface SavedLead {
   reviews: { text: string; flagged_keywords: string[]; rating?: number | null; time?: number | null; relative_time_description?: string | null }[]
   enrichment_summary?: string | null
   outreach_suggestion?: string | null
+  top_complaints?: string[]
+  top_strengths?: string[]
   source_city?: string | null
   source_specialty?: string | null
   source_region?: string | null
@@ -213,6 +241,8 @@ export interface SavedLead {
   last_contact_date?: string | null
   lost_reason?: string | null
   at_risk?: boolean
+  contact_email?: string | null
+  director_name?: string | null
 }
 
 export interface LeadUpdateParams {
@@ -220,6 +250,8 @@ export interface LeadUpdateParams {
   lost_reason?: string | null
   qualification_score?: number | null
   lead_source?: string | null
+  contact_email?: string | null
+  director_name?: string | null
 }
 
 export interface FollowUp {
@@ -252,6 +284,8 @@ function normalizeSavedLead(raw: Record<string, unknown>): SavedLead {
     last_contact_date: raw?.last_contact_date != null ? String(raw.last_contact_date) : null,
     lost_reason: raw?.lost_reason != null ? String(raw.lost_reason) : null,
     at_risk: Boolean(raw?.at_risk),
+    contact_email: raw?.contact_email != null ? String(raw.contact_email) : null,
+    director_name: raw?.director_name != null ? String(raw.director_name) : null,
   }
 }
 
@@ -317,12 +351,40 @@ export async function updateLeadStage(leadId: number, stage: string): Promise<vo
   await updateLead(leadId, { stage })
 }
 
+export interface BulkLeadUpdateParams {
+  lead_ids: number[]
+  contact_email?: string | null
+  director_name?: string | null
+  note?: string | null
+}
+
+export async function bulkUpdateLeads(params: BulkLeadUpdateParams): Promise<{ updated: number }> {
+  const res = await fetch(`${API_BASE}/api/leads/bulk`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      lead_ids: params.lead_ids,
+      contact_email: params.contact_email ?? null,
+      director_name: params.director_name ?? null,
+      note: params.note ?? null,
+    }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }))
+    throw new Error(typeof err?.detail === 'string' ? err.detail : 'Bulk update failed')
+  }
+  const data = (await res.json()) as { updated?: number }
+  return { updated: data?.updated ?? 0 }
+}
+
 export async function updateLead(leadId: number, params: LeadUpdateParams): Promise<void> {
   const body: Record<string, unknown> = {}
   if (params.stage !== undefined) body.stage = params.stage
   if (params.lost_reason !== undefined) body.lost_reason = params.lost_reason
   if (params.qualification_score !== undefined) body.qualification_score = params.qualification_score
   if (params.lead_source !== undefined) body.lead_source = params.lead_source
+  if (params.contact_email !== undefined) body.contact_email = params.contact_email
+  if (params.director_name !== undefined) body.director_name = params.director_name
   const res = await fetch(`${API_BASE}/api/leads/${leadId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -378,6 +440,20 @@ export interface SearchParams {
   has_phone?: boolean
   budget_max?: number
   score_weights?: ScoreWeights
+}
+
+export async function explainScore(lead: HotLead): Promise<{ explanation: string }> {
+  const res = await fetch(`${API_BASE}/api/leads/explain-score`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lead }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }))
+    throw new Error(typeof err?.detail === 'string' ? err.detail : 'Explain score failed')
+  }
+  const data = (await res.json()) as { explanation?: string }
+  return { explanation: data?.explanation ?? '' }
 }
 
 export async function searchLeads(params: SearchParams): Promise<SearchResponse> {
