@@ -1,58 +1,53 @@
-import { Link, useLocation, Outlet } from 'react-router-dom'
-import { UserButton } from '@clerk/clerk-react'
-import { LayoutDashboard, Users, MapPin, ListTodo, GitBranch } from 'lucide-react'
+import { Link, useLocation, Outlet } from 'react-router-dom';
+import { UserButton } from '@clerk/clerk-react';
+import { Flame } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/lifecycle', label: 'Lead Lifecycle', icon: GitBranch },
-  { to: '/my-leads', label: 'Leads', icon: Users },
-  { to: '/coverage', label: 'Coverage', icon: MapPin },
-  { to: '/product-backlog', label: 'Product backlog', icon: ListTodo },
-] as const
+  { to: '/dashboard', label: 'Dashboard' },
+  { to: '/my-leads', label: 'My Leads' },
+  { to: '/coverage', label: 'Coverage' },
+] as const;
 
 export function AppLayout() {
-  const location = useLocation()
-  const path = location.pathname
+  const location = useLocation();
+  const path = location.pathname;
 
   return (
-    <div className="flex min-h-screen bg-[#F8FAFC]">
-      {/* Persistent slim sidebar */}
-      <aside
-        className="flex w-[200px] flex-col border-r border-slate-200/80 bg-white shadow-sm"
-        aria-label="Main navigation"
-      >
-        <div className="flex h-14 items-center border-b border-slate-100 px-4">
-          <span className="text-lg font-semibold tracking-tight text-slate-900">Hot Leads</span>
-        </div>
-        <nav className="flex-1 space-y-0.5 p-2">
-          {NAV_ITEMS.map(({ to, label, icon: Icon }) => {
-            const active = path === to || (to !== '/dashboard' && path.startsWith(to))
-            return (
-              <Link
-                key={to}
-                to={to}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                  active
-                    ? 'bg-slate-100 text-slate-900'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                <Icon className="h-5 w-5 shrink-0" aria-hidden />
-                {label}
-              </Link>
-            )
-          })}
-        </nav>
-        <div className="border-t border-slate-100 p-2">
-          <div className="flex items-center justify-between rounded-lg px-3 py-2">
-            <span className="text-xs text-slate-500">Account</span>
+    // Changed background to a dark slate blue
+    <div className="min-h-screen bg-[#0F172A]">
+      <header className="sticky top-0 z-50 bg-white shadow-md">
+        <div className="mx-auto flex max-w-screen-xl items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Flame className="h-8 w-8 text-blue-600" />
+            <span className="text-xl font-bold text-slate-800">Hot Leads</span>
+          </div>
+          <nav className="flex items-center gap-6">
+            {NAV_ITEMS.map(({ to, label }) => {
+              const active = path === to || (to !== '/dashboard' && path.startsWith(to));
+              return (
+                <Link
+                  key={to}
+                  to={to}
+                  className={`relative text-base font-medium transition-colors duration-200 ${
+                    active ? 'text-blue-600' : 'text-slate-600 hover:text-blue-600'
+                  }`}
+                >
+                  {label}
+                  {active && (
+                    <span className="absolute -bottom-3 left-0 h-1 w-full rounded-full bg-blue-600"></span>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+          <div className="flex items-center">
             <UserButton afterSignOutUrl="/sign-in" />
           </div>
         </div>
-      </aside>
-      <main className="flex-1 overflow-auto">
+      </header>
+      <main className="mx-auto max-w-screen-xl p-4">
         <Outlet />
       </main>
     </div>
-  )
+  );
 }
