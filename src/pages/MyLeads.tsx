@@ -8,11 +8,13 @@ import {
   getAssignableUsers,
   assignLead,
   unassignLead,
+  updateLeadStage,
   type SavedLead,
   type AssignableUser,
 } from '../api/client'
 import { PipelineBoard } from '../components/PipelineBoard'
 import { LeadDetailsDrawer, type LeadDetailsUpdates } from '../components/LeadDetailsDrawer'
+import { SwipeableLeadCard } from '../components/SwipeableLeadCard'
 
 const STAGES = ['new', 'contacted', 'meeting_booked', 'qualified', 'nurtured']
 type ViewMode = 'list' | 'pipeline'
@@ -88,13 +90,30 @@ export function MyLeads() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-4 sm:p-6">
+    <div className="min-h-screen bg-[var(--color-canvas)] p-[var(--edge-padding)] md:p-6 pb-20 md:pb-6">
       <div className="mx-auto max-w-6xl">
-        <header className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-900">Leads</h1>
+        <header className="mb-4">
+          <h1 className="text-2xl font-bold text-[var(--color-navy)]">Leads</h1>
         </header>
+        {/* Mobile: segmented control for stage only */}
+        <div className="md:hidden mb-4 overflow-x-auto -mx-[var(--edge-padding)] px-[var(--edge-padding)]">
+          <div className="flex gap-2 pb-2 min-w-0">
+            {['', ...STAGES].map((s) => (
+              <button
+                key={s || 'all'}
+                type="button"
+                onClick={() => setStageFilter(s)}
+                className={`touch-target shrink-0 px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap ${stageFilter === s ? 'bg-[var(--color-primary)] text-white' : 'bg-slate-100 text-slate-700'}`}
+                style={{ minHeight: 'var(--touch-min)' }}
+              >
+                {s ? s.replace(/_/g, ' ') : 'All'}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="mb-4 flex flex-wrap items-center gap-4">
-          <div className="flex rounded-lg border border-slate-200 p-0.5 bg-slate-100">
+          {/* Desktop: List / Pipeline toggle */}
+          <div className="hidden md:flex rounded-lg border border-slate-200 p-0.5 bg-slate-100">
             <button
               type="button"
               onClick={() => setViewMode('list')}
@@ -116,21 +135,21 @@ export function MyLeads() {
               <button
                 type="button"
                 onClick={() => setLeadScope('my')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md ${leadScope === 'my' ? 'bg-white text-slate-900 shadow' : 'text-slate-600 hover:text-slate-900'}`}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md touch-target ${leadScope === 'my' ? 'bg-white text-slate-900 shadow' : 'text-slate-600 hover:text-slate-900'}`}
               >
                 My Leads
               </button>
               <button
                 type="button"
                 onClick={() => setLeadScope('org')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md ${leadScope === 'org' ? 'bg-white text-slate-900 shadow' : 'text-slate-600 hover:text-slate-900'}`}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md touch-target ${leadScope === 'org' ? 'bg-white text-slate-900 shadow' : 'text-slate-600 hover:text-slate-900'}`}
               >
                 Organization
               </button>
             </div>
           </div>
           {viewMode === 'list' && (
-            <>
+            <div className="hidden md:flex items-center gap-2">
               <label className="text-sm text-gray-600">Stage:</label>
               <select
                 value={stageFilter}
@@ -142,7 +161,7 @@ export function MyLeads() {
                   <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
                 ))}
               </select>
-            </>
+            </div>
           )}
           <button
             type="button"
@@ -176,7 +195,9 @@ export function MyLeads() {
         {!loading && leads.length === 0 && (
           <p className="text-gray-500">No saved leads. Search on the Dashboard and click &quot;Save all&quot;.</p>
         )}
+        {/* Pipeline: desktop only */}
         {!loading && leads.length > 0 && viewMode === 'pipeline' && (
+          <div className="hidden md:block">
           <PipelineBoard
             leads={leads}
             onLeadsChange={setLeads}
@@ -191,9 +212,31 @@ export function MyLeads() {
               fetchLeads()
             }}
           />
+          </div>
         )}
+        {/* List: mobile = cards with swipe; desktop = table */}
         {!loading && leads.length > 0 && viewMode === 'list' && (
-          <div className="overflow-x-auto rounded border border-gray-200 bg-white">
+          <>
+            <div className="md:hidden space-y-3">
+              {leads.map((lead) => (
+                <SwipeableLeadCard
+                  key={lead.id}
+                  lead={lead}
+                  isYou={lead.assigned_to === user?.id}
+                  selected={selectedIds.has(lead.id)}
+                  onToggle={(checked) => toggleSelect(lead.id, checked)}
+                  onSwipeRight={async () => {
+                    await updateLeadStage(lead.id, 'qualified')
+                    fetchLeads()
+                  }}
+                  onSwipeLeft={async () => {
+                    await updateLeadStage(lead.id, 'new')
+                    fetchLeads()
+                  }}
+                />
+              ))}
+            </div>
+            <div className="hidden md:block overflow-x-auto rounded border border-gray-200 bg-white">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-100">
                 <tr>
@@ -228,7 +271,7 @@ export function MyLeads() {
                       {lead.assigned_to ? (
                         <span
                           className={`inline-flex rounded-[8px] px-2 py-0.5 text-xs font-medium ${
-                            lead.assigned_to === user?.id ? 'bg-[#2563EB]/10 text-[#2563EB]' : 'bg-slate-100 text-slate-700'
+                            lead.assigned_to === user?.id ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]' : 'bg-slate-100 text-slate-700'
                           }`}
                           title={lead.assigned_to}
                         >
@@ -252,6 +295,7 @@ export function MyLeads() {
               </tbody>
             </table>
           </div>
+          </>
         )}
         <LeadDetailsDrawer
           open={detailsDrawerOpen}

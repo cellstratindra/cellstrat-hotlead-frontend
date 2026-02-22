@@ -17,10 +17,10 @@ export function TeamDispatchPopover({
   open,
   onClose,
   anchorRef,
-  leadId,
+  leadId: _leadId,
   assignedTo,
   users,
-  currentUserId,
+  currentUserId: _currentUserId,
   onAssign,
   onUnassign,
 }: TeamDispatchPopoverProps) {

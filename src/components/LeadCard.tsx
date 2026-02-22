@@ -6,7 +6,7 @@ import { TeamDispatchPopover } from './TeamDispatchPopover'
 import { explainScore, type AssignableUser } from '../api/client'
 
 interface LeadCardProps {
-  lead: HotLead & { id?: number; assigned_to?: string | null }
+  lead: HotLead & { id?: number | null; assigned_to?: string | null }
   /** e.g. "Cardiology in Bangalore" for benchmark label */
   marketLabel?: string | null
   /** Show checkbox for multi-select */
@@ -99,23 +99,24 @@ export function LeadCard({
         aria-label={`Lead: ${lead.name}`}
       >
         <div className="flex flex-col gap-4">
+          {/* Header: clinic name (left) + Tier & Score chips (right) */}
           <div className="flex items-start justify-between gap-3">
             {showCheckbox && onToggle && (
               <input
                 type="checkbox"
                 checked={selected ?? false}
                 onChange={(e) => onToggle(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]"
+                className="h-4 w-4 rounded border-slate-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)] shrink-0 mt-0.5"
                 aria-label={`Select ${lead.name}`}
               />
             )}
             <h3 className="text-lg font-semibold leading-tight text-slate-900 flex-1 min-w-0">
               {lead.name ?? '—'}
             </h3>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2 flex-wrap justify-end">
               {score != null && (
                 <span
-                  className="text-xl font-bold tabular-nums text-[#2563EB] cursor-help"
+                  className="text-xl font-bold tabular-nums text-[var(--color-primary)] cursor-help rounded-md bg-[var(--color-primary)]/10 px-2 py-0.5"
                   title="Recommendation score (0–100): based on rating, review volume, phone availability, and enrichment. Higher = stronger fit for outreach."
                   aria-label={`Score ${score}`}
                 >
@@ -135,13 +136,21 @@ export function LeadCard({
               )}
             </div>
           </div>
+          {/* Secondary line: phone, city/source (mobile-friendly) */}
+          {(lead.phone || marketLabel) && (
+            <p className="text-sm text-slate-500 -mt-2">
+              {lead.phone && <span>{lead.phone}</span>}
+              {lead.phone && marketLabel && <span className="mx-1.5">·</span>}
+              {marketLabel && <span>{marketLabel}</span>}
+            </p>
+          )}
           {score != null && (
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 type="button"
                 onClick={handleExplainScore}
                 disabled={explainLoading}
-                className="text-xs text-slate-500 hover:text-[#2563EB] disabled:opacity-50"
+                className="text-xs text-slate-500 hover:text-[var(--color-primary)] disabled:opacity-50"
               >
                 {explainLoading ? '…' : 'Explain with AI'}
               </button>
@@ -162,7 +171,7 @@ export function LeadCard({
             </p>
           )}
           {lead.percentile_in_market != null && lead.total_in_market != null && (
-            <p className="text-xs font-medium text-[#2563EB]">
+            <p className="text-xs font-medium text-[var(--color-primary)]">
               Top {Math.round(100 - lead.percentile_in_market)}%{marketLabel ? ` of ${marketLabel}` : ''} · Rank {lead.rank_in_market ?? '—'} of {lead.total_in_market}
             </p>
           )}
@@ -224,7 +233,7 @@ export function LeadCard({
                 aria-label="Assign or change assignment"
               >
                 {assignedTo ? (
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#2563EB]/15 text-xs font-medium text-[#2563EB]">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-primary)]/15 text-xs font-medium text-[var(--color-primary)]">
                     {assignedTo.slice(0, 2).toUpperCase()}
                   </span>
                 ) : (
@@ -250,7 +259,7 @@ export function LeadCard({
             <button
               type="button"
               onClick={() => setReviewsOpen(true)}
-              className="rounded-lg border border-[#2563EB] bg-white px-3 py-2 text-sm font-medium text-[#2563EB] shadow-sm hover:bg-[#2563EB]/5"
+              className="rounded-lg border border-[var(--color-primary)] bg-white px-3 py-2 text-sm font-medium text-[var(--color-primary)] shadow-sm hover:bg-[var(--color-primary)]/5"
             >
               View reviews
             </button>

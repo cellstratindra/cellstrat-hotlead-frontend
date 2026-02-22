@@ -12,7 +12,7 @@ import { Settings } from './pages/Settings'
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC]">
+    <div className="flex min-h-screen items-center justify-center bg-[var(--color-canvas)]">
       {children}
     </div>
   )

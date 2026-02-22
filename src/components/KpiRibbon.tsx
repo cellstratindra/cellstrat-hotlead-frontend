@@ -32,11 +32,8 @@ interface KpiRibbonProps {
 
 export function KpiRibbon({ data = STUB_DATA, loading = false }: KpiRibbonProps) {
   const kpis = data ?? STUB_DATA
-  const demoPct = kpis.demoToDeal.target > 0
-    ? Math.min(100, (kpis.demoToDeal.actual / kpis.demoToDeal.target) * 100)
-    : 0
   const demoChartData = [
-    { name: 'Done', value: kpis.demoToDeal.actual, color: '#2563EB' },
+    { name: 'Done', value: kpis.demoToDeal.actual, color: 'var(--color-primary)' },
     { name: 'Remaining', value: Math.max(0, kpis.demoToDeal.target - kpis.demoToDeal.actual), color: '#e2e8f0' },
   ]
 
@@ -58,8 +55,8 @@ export function KpiRibbon({ data = STUB_DATA, loading = false }: KpiRibbonProps)
       {/* Demo-to-Deal */}
       <div className="rounded-[8px] border border-slate-200 bg-white p-4 shadow-[var(--shadow-dropdown)]">
         <div className="flex items-center gap-2 mb-2">
-          <Target className="h-4 w-4 text-[#2563EB]" aria-hidden />
-          <h3 className="text-sm font-medium text-[#1E293B]">Demo-to-Deal</h3>
+          <Target className="h-4 w-4 text-[var(--color-primary)]" aria-hidden />
+          <h3 className="text-sm font-medium text-[var(--color-navy)]">Demo-to-Deal</h3>
         </div>
         <div className="flex items-center gap-4">
           <div className="h-16 w-16 shrink-0">
@@ -83,7 +80,7 @@ export function KpiRibbon({ data = STUB_DATA, loading = false }: KpiRibbonProps)
             </ResponsiveContainer>
           </div>
           <div>
-            <p className="text-2xl font-bold text-[#1E293B]">
+            <p className="text-2xl font-bold text-[var(--color-navy)]">
               {kpis.demoToDeal.actual}<span className="text-slate-400 font-normal text-base">/{kpis.demoToDeal.target}</span>
             </p>
             <p className="text-xs text-slate-500">Target vs Actual</p>
@@ -95,7 +92,7 @@ export function KpiRibbon({ data = STUB_DATA, loading = false }: KpiRibbonProps)
       <div className="rounded-[8px] border border-slate-200 bg-white p-4 shadow-[var(--shadow-dropdown)]">
         <div className="flex items-center gap-2 mb-2">
           <UserX className="h-4 w-4 text-amber-500" aria-hidden />
-          <h3 className="text-sm font-medium text-[#1E293B]">No-Show Rate</h3>
+          <h3 className="text-sm font-medium text-[var(--color-navy)]">No-Show Rate</h3>
         </div>
         <div className="h-16">
           <ResponsiveContainer width="100%" height="100%">
@@ -113,11 +110,11 @@ export function KpiRibbon({ data = STUB_DATA, loading = false }: KpiRibbonProps)
       {/* Lead Response Time */}
       <div className="rounded-[8px] border border-slate-200 bg-white p-4 shadow-[var(--shadow-dropdown)]">
         <div className="flex items-center gap-2 mb-2">
-          <Clock className="h-4 w-4 text-[#2563EB]" aria-hidden />
-          <h3 className="text-sm font-medium text-[#1E293B]">Lead Response Time</h3>
+          <Clock className="h-4 w-4 text-[var(--color-primary)]" aria-hidden />
+          <h3 className="text-sm font-medium text-[var(--color-navy)]">Lead Response Time</h3>
         </div>
         <div className="flex items-baseline gap-1">
-          <span className="text-2xl font-bold text-[#1E293B] tabular-nums">
+          <span className="text-2xl font-bold text-[var(--color-navy)] tabular-nums">
             {kpis.leadResponseTimeHours}h
           </span>
         </div>

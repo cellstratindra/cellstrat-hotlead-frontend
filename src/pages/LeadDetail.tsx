@@ -18,9 +18,11 @@ import {
 import type { FeatureOccurrence, ReviewInsightsResponse } from '../types/leads'
 import { sortReviews, type ReviewSortOption } from '../components/ReviewsModal'
 import { PrecallBriefModal } from '../components/PrecallBriefModal'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 
 const STAGES = ['new', 'contacted', 'meeting_booked', 'qualified', 'nurtured']
 type TabKey = 'overview' | 'features'
+type MobileTabKey = 'basic' | 'insights' | 'reviews'
 
 export function LeadDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -35,6 +37,9 @@ export function LeadDetailPage() {
   const [insightsLoading, setInsightsLoading] = useState(false)
   const [benchmark, setBenchmark] = useState<BenchmarkResponse | null>(null)
   const [activeTab, setActiveTab] = useState<TabKey>('overview')
+  const [mobileTab, setMobileTab] = useState<MobileTabKey>('basic')
+  const [chartFullScreen, setChartFullScreen] = useState(false)
+  const isMobile = useMediaQuery('(max-width: 767px)')
   const [featureOccurrences, setFeatureOccurrences] = useState<FeatureOccurrence[]>([])
   const [meetings, setMeetings] = useState<{ id: number; lead_id: number; title?: string | null; transcript_or_summary: string; created_at?: string }[]>([])
   const [featuresLoading, setFeaturesLoading] = useState(false)
@@ -205,33 +210,152 @@ export function LeadDetailPage() {
   if (!lead) return <div className="p-6 text-red-600">Lead not found.</div>
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-6">
+    <div className="min-h-screen bg-[var(--color-canvas)] p-[var(--edge-padding)] md:p-6 pb-20 md:pb-6">
       <div className="mx-auto max-w-3xl">
-        <div className="mb-6 flex items-center gap-4">
-          <Link to="/my-leads" className="text-[#2563EB] hover:underline">Leads</Link>
-          <h1 className="text-2xl font-bold text-slate-900">{lead.name}</h1>
+        <div className="mb-4 flex items-center gap-4">
+          <Link to="/my-leads" className="text-[var(--color-primary)] hover:underline touch-target flex items-center">Leads</Link>
+          <h1 className="text-xl md:text-2xl font-bold text-[var(--color-navy)] truncate flex-1 min-w-0">{lead.name}</h1>
         </div>
-        <div className="mb-4 flex gap-2 border-b border-gray-200">
+        {/* Mobile: 3 tabs */}
+        <div className="md:hidden mb-4 flex gap-1 border-b border-slate-200">
+          {(['basic', 'insights', 'reviews'] as const).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setMobileTab(tab)}
+              className={`flex-1 touch-target py-3 text-sm font-medium border-b-2 -mb-px capitalize ${mobileTab === tab ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-transparent text-slate-600'}`}
+              style={{ minHeight: 'var(--touch-min)' }}
+            >
+              {tab === 'basic' ? 'Basic' : tab === 'insights' ? 'Insights' : 'Reviews'}
+            </button>
+          ))}
+        </div>
+        {/* Desktop: 2 tabs */}
+        <div className="hidden md:flex gap-2 border-b border-gray-200 mb-4">
           <button
             type="button"
             onClick={() => setActiveTab('overview')}
-            className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px ${activeTab === 'overview' ? 'border-[#2563EB] text-[#2563EB]' : 'border-transparent text-gray-600 hover:text-gray-900'}`}
+            className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px ${activeTab === 'overview' ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-transparent text-gray-600 hover:text-gray-900'}`}
           >
             Overview
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('features')}
-            className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px ${activeTab === 'features' ? 'border-[#2563EB] text-[#2563EB]' : 'border-transparent text-gray-600 hover:text-gray-900'}`}
+            className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px ${activeTab === 'features' ? 'border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-transparent text-gray-600 hover:text-gray-900'}`}
           >
             Features
           </button>
         </div>
-        {activeTab === 'overview' && (
+        {/* Mobile tab content */}
+        {isMobile && mobileTab === 'basic' && (
+          <div className="space-y-4 rounded border border-slate-200 bg-white p-4">
+            {benchmark && (
+              <p className="text-sm font-medium text-[var(--color-primary)]">
+                Rank in {lead.source_city}: Top {Math.round(100 - benchmark.percentile)}% of {lead.source_specialty} · Rank {benchmark.rank} of {benchmark.total_in_market}
+              </p>
+            )}
+            <p><span className="font-medium text-gray-700">Rating:</span> {Number(lead.rating).toFixed(1)}</p>
+            <p><span className="font-medium text-gray-700">Review count:</span> {lead.review_count}</p>
+            {lead.phone && <p><span className="font-medium text-gray-700">Phone:</span> {lead.phone}</p>}
+            <p><span className="font-medium text-gray-700">Stage:</span>
+              <select value={lead.stage} onChange={(e) => handleStageChange(e.target.value)} className="ml-2 rounded border border-gray-300 px-2 py-1 text-sm">
+                {STAGES.map((s) => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
+              </select>
+            </p>
+            <button type="button" onClick={() => setPrecallBriefOpen(true)} className="touch-target rounded bg-slate-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800" style={{ minHeight: 'var(--touch-min)' }}>Pre-call brief</button>
+          </div>
+        )}
+        {isMobile && mobileTab === 'insights' && (
+          <div className="space-y-4">
+            {(lead.enrichment_summary || lead.outreach_suggestion) && (
+              <div className="relative overflow-hidden rounded-xl border border-white/40 bg-white/60 p-4 shadow-sm backdrop-blur-md">
+                <span className="inline-block rounded-full bg-[var(--color-primary)]/10 px-2 py-0.5 text-xs font-medium text-[var(--color-primary)]">AI-Generated</span>
+                {lead.enrichment_summary && <p className="mt-2 text-sm text-slate-700"><span className="font-medium text-slate-800">Summary:</span> {lead.enrichment_summary}</p>}
+                {lead.outreach_suggestion && <p className="mt-1 text-sm text-slate-700"><span className="font-medium text-slate-800">Outreach:</span> {lead.outreach_suggestion}</p>}
+              </div>
+            )}
+            {hasReviewText && (
+              <div className="rounded border border-slate-200 bg-white p-4">
+                <h2 className="mb-2 font-semibold text-[var(--color-navy)]">Review insights</h2>
+                {!leadInsights ? (
+                  <button type="button" onClick={handleLoadInsights} disabled={insightsLoading} className="text-sm text-[var(--color-primary)] hover:underline disabled:opacity-50 touch-target py-2" style={{ minHeight: 'var(--touch-min)' }}>{insightsLoading ? 'Loading…' : 'Load insights'}</button>
+                ) : (
+                  <div className="space-y-2 text-sm text-slate-700">
+                    <p>Negative reviews: <strong>{leadInsights.negative_review_count}</strong> of <strong>{leadInsights.total_shown}</strong></p>
+                    <p>Complaints about doctors: <strong>{leadInsights.complaints_about_doctors_count}</strong></p>
+                    {leadInsights.top_10_improvements.length > 0 && (
+                      <div className="mt-2">
+                        <p className="font-medium text-slate-800 mb-1">Top improvements</p>
+                        <ol className="list-decimal list-inside space-y-0.5">{leadInsights.top_10_improvements.slice(0, 5).map((item, i) => <li key={i}>{item}</li>)}</ol>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        {isMobile && mobileTab === 'reviews' && (
+          <div className="rounded border border-slate-200 bg-white p-4">
+            <h2 className="mb-2 font-semibold text-[var(--color-navy)]">Reviews</h2>
+            {displaySummary ? (
+              <div className="relative overflow-hidden rounded-xl border border-white/40 bg-white/60 p-4 shadow-sm backdrop-blur-md mb-4">
+                <p className="text-sm text-slate-700">{displaySummary}</p>
+              </div>
+            ) : hasReviewText && (
+              <button type="button" onClick={handleGenerateSummary} disabled={summaryLoading} className="text-sm text-[var(--color-primary)] hover:underline mb-4">{summaryLoading ? 'Generating…' : 'Generate summary'}</button>
+            )}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setChartFullScreen(true)}
+              onKeyDown={(e) => e.key === 'Enter' && setChartFullScreen(true)}
+              className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500 touch-target flex items-center justify-center"
+              style={{ minHeight: 'var(--touch-min)' }}
+            >
+              Review distribution (tap for full screen)
+            </div>
+            {hasReviewText && (
+              <>
+                <div className="flex items-center gap-2 mb-2">
+                  <label htmlFor="lead-review-sort-m" className="text-sm font-medium text-gray-700">Sort</label>
+                  <select id="lead-review-sort-m" value={reviewSort} onChange={(e) => setReviewSort(e.target.value as ReviewSortOption)} className="rounded border border-gray-300 text-sm px-2 py-1">
+                    <option value="latest">Latest</option>
+                    <option value="oldest">Oldest</option>
+                    <option value="highest_rating">High rating</option>
+                    <option value="lowest_rating">Low rating</option>
+                  </select>
+                </div>
+                <ul className="space-y-3 max-h-96 overflow-y-auto">
+                  {sortedReviews.map((r, idx) => (
+                    <li key={idx} className="border-b border-slate-200 last:border-0 pb-3 last:pb-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {r.rating != null && <span className="text-amber-600 text-sm font-medium">★ {Number(r.rating).toFixed(1)}</span>}
+                        {r.relative_time_description && <span className="text-xs text-gray-500">{r.relative_time_description}</span>}
+                      </div>
+                      <p className="text-gray-700 text-sm whitespace-pre-wrap">{r.text?.trim() || '—'}</p>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        )}
+        {chartFullScreen && (
+          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setChartFullScreen(false)}>
+            <div className="bg-white rounded-xl p-6 max-w-lg w-full text-center" onClick={(e) => e.stopPropagation()}>
+              <p className="text-slate-600 mb-4">Review distribution (full screen)</p>
+              <div className="h-48 rounded bg-slate-100 flex items-center justify-center text-slate-500 text-sm">Chart placeholder</div>
+              <button type="button" onClick={() => setChartFullScreen(false)} className="mt-4 touch-target rounded bg-slate-700 text-white px-4 py-2 text-sm" style={{ minHeight: 'var(--touch-min)' }}>Close</button>
+            </div>
+          </div>
+        )}
+        {!isMobile && activeTab === 'overview' && (
         <>
         <div className="space-y-4 rounded border border-gray-200 bg-white p-4">
           {benchmark && (
-            <p className="text-sm font-medium text-[#2563EB]">
+            <p className="text-sm font-medium text-[var(--color-primary)]">
               Rank in {lead.source_city}: Top {Math.round(100 - benchmark.percentile)}% of {lead.source_specialty} · Rank {benchmark.rank} of {benchmark.total_in_market}
             </p>
           )}
@@ -261,7 +385,7 @@ export function LeadDetailPage() {
           </button>
           {(lead.enrichment_summary || lead.outreach_suggestion) && (
             <div className="relative overflow-hidden rounded-xl border border-white/40 bg-white/60 p-4 shadow-sm backdrop-blur-md">
-              <span className="inline-block rounded-full bg-[#2563EB]/10 px-2 py-0.5 text-xs font-medium text-[#2563EB]">
+              <span className="inline-block rounded-full bg-[var(--color-primary)]/10 px-2 py-0.5 text-xs font-medium text-[var(--color-primary)]">
                 AI-Generated
               </span>
               {lead.enrichment_summary && (
@@ -283,7 +407,7 @@ export function LeadDetailPage() {
               <h3 className="text-sm font-medium text-slate-800 mb-1">Review summary</h3>
               {displaySummary ? (
                 <div className="relative overflow-hidden rounded-xl border border-white/40 bg-white/60 p-4 shadow-sm backdrop-blur-md">
-                  <span className="inline-block rounded-full bg-[#2563EB]/10 px-2 py-0.5 text-xs font-medium text-[#2563EB]">
+                  <span className="inline-block rounded-full bg-[var(--color-primary)]/10 px-2 py-0.5 text-xs font-medium text-[var(--color-primary)]">
                     AI-Generated
                   </span>
                   <p className="mt-2 text-sm text-slate-700">{displaySummary}</p>
@@ -293,7 +417,7 @@ export function LeadDetailPage() {
                   type="button"
                   onClick={handleGenerateSummary}
                   disabled={summaryLoading}
-                  className="text-sm text-[#2563EB] hover:underline disabled:opacity-50"
+                  className="text-sm text-[var(--color-primary)] hover:underline disabled:opacity-50"
                 >
                   {summaryLoading ? 'Generating…' : 'Generate summary (Gemini)'}
                 </button>
@@ -375,7 +499,7 @@ export function LeadDetailPage() {
           </div>
         )}
         <div className="mt-6 rounded-[8px] border border-slate-200 bg-white p-4 shadow-[var(--shadow-dropdown)]">
-          <h2 className="mb-3 font-semibold text-[#1E293B]">Communication Timeline</h2>
+          <h2 className="mb-3 font-semibold text-[var(--color-navy)]">Communication Timeline</h2>
           <ul className="space-y-3 max-h-64 overflow-y-auto">
             {communicationTimeline.length === 0 && <li className="text-sm text-slate-500">No activity yet</li>}
             {communicationTimeline.map((item, i) => (
@@ -394,18 +518,18 @@ export function LeadDetailPage() {
           </ul>
         </div>
         <div className="mt-6 rounded-[8px] border border-slate-200 bg-white p-4 shadow-[var(--shadow-dropdown)]">
-          <h2 className="mb-2 font-semibold text-[#1E293B]">Tracking Note</h2>
+          <h2 className="mb-2 font-semibold text-[var(--color-navy)]">Tracking Note</h2>
           <p className="text-xs text-slate-500 mb-2">Markdown supported. Auto-saves after you stop typing.</p>
           <textarea
             value={trackingNoteContent}
             onChange={(e) => setTrackingNoteContent(e.target.value)}
             placeholder="Add a note…"
-            className="w-full min-h-[80px] rounded-[8px] border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
+            className="w-full min-h-[80px] rounded-[8px] border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:outline-none"
             rows={3}
           />
           <div className="mt-2 flex items-center gap-2">
             {lastSavedAt && <span className="text-xs text-slate-500">Saved at {lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
-            {trackingNoteSaving && <span className="text-xs text-[#2563EB]">Saving…</span>}
+            {trackingNoteSaving && <span className="text-xs text-[var(--color-primary)]">Saving…</span>}
           </div>
           <form onSubmit={handleAddNote} className="mt-4 flex gap-2">
             <input
@@ -413,9 +537,9 @@ export function LeadDetailPage() {
               value={noteContent}
               onChange={(e) => setNoteContent(e.target.value)}
               placeholder="Quick add note…"
-              className="flex-1 rounded-[8px] border border-slate-200 px-3 py-2 text-sm focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
+              className="flex-1 rounded-[8px] border border-slate-200 px-3 py-2 text-sm focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:outline-none"
             />
-            <button type="submit" disabled={submittingNote || !noteContent.trim()} className="rounded-[8px] bg-[#2563EB] px-4 py-2 text-sm text-white hover:bg-[#1d4ed8] disabled:opacity-50">
+            <button type="submit" disabled={submittingNote || !noteContent.trim()} className="rounded-[8px] bg-[var(--color-primary)] px-4 py-2 text-sm text-white hover:bg-[var(--color-primary-hover)] disabled:opacity-50">
               Add
             </button>
           </form>
@@ -430,7 +554,7 @@ export function LeadDetailPage() {
         />
         </>
         )}
-        {activeTab === 'features' && (
+        {!isMobile && activeTab === 'features' && (
           <div className="space-y-4">
             <div className="rounded border border-gray-200 bg-white p-4">
               <h2 className="mb-2 font-semibold text-gray-900">CellAssist features</h2>

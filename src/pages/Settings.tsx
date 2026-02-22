@@ -123,7 +123,7 @@ export function Settings() {
       >
         <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
           <Mail className="h-5 w-5 text-slate-600" aria-hidden />
-          <h2 id="gmail-heading" className="text-lg font-semibold text-[#1E293B]">
+          <h2 id="gmail-heading" className="text-lg font-semibold text-[var(--color-navy)]">
             Gmail Connection Status
           </h2>
         </div>
@@ -148,7 +148,7 @@ export function Settings() {
                   href={`${API_BASE}/api/gmail/redirect-uri`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[#2563EB] hover:underline"
+                  className="text-[var(--color-primary)] hover:underline"
                 >
                   Check which redirect URI this app uses
                 </a>
@@ -169,7 +169,7 @@ export function Settings() {
                       className="h-12 w-12 rounded-full border-2 border-slate-200 object-cover"
                     />
                   ) : (
-                    <div className="h-12 w-12 rounded-full bg-[#2563EB] flex items-center justify-center text-white font-semibold text-lg shrink-0">
+                    <div className="h-12 w-12 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white font-semibold text-lg shrink-0">
                       {gmail.email ? gmail.email.charAt(0).toUpperCase() : 'G'}
                     </div>
                   )}
@@ -220,7 +220,7 @@ export function Settings() {
               <button
                 type="button"
                 onClick={handleSignInGmail}
-                className="inline-flex items-center gap-2 rounded-[8px] px-5 py-3 text-sm font-medium text-white bg-[#2563EB] shadow-md hover:bg-[#1d4ed8] transition-colors"
+                className="inline-flex items-center gap-2 rounded-[8px] px-5 py-3 text-sm font-medium text-white bg-[var(--color-primary)] shadow-md hover:bg-[var(--color-primary-hover)] transition-colors"
               >
                 <GoogleLogoIcon className="h-5 w-5" />
                 Connect Gmail
@@ -231,7 +231,7 @@ export function Settings() {
                   href={`${API_BASE}/api/gmail/redirect-uri`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[#2563EB] hover:underline"
+                  className="text-[var(--color-primary)] hover:underline"
                 >
                   Check redirect URI
                 </a>

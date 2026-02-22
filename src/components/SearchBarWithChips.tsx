@@ -32,9 +32,11 @@ interface SearchBarProps {
   loading: boolean;
   initialChips?: Partial<SearchChips>;
   initialFilters?: Partial<SearchFilters>;
+  /** Optional form id for external submit button (e.g. in FilterDrawer) */
+  formId?: string;
 }
 
-export function SearchBarWithChips({ onSubmit, loading, initialChips = {}, initialFilters = {} }: SearchBarProps) {
+export function SearchBarWithChips({ onSubmit, loading, initialChips = {}, initialFilters = {}, formId }: SearchBarProps) {
   const [search, setSearch] = useState<SearchChips>(() => {
     const city = initialChips.city || 'Bangalore';
     const specialty = initialChips.specialty || 'General practice';
@@ -72,11 +74,11 @@ export function SearchBarWithChips({ onSubmit, loading, initialChips = {}, initi
     onSubmit(submissionChips, filters);
   }
 
-  const inputStyle = "w-full rounded-[8px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none relative z-0";
+  const inputStyle = "w-full rounded-[8px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:outline-none relative z-0";
   const selectWrapperStyle = "relative z-10";
 
   return (
-    <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+    <form id={formId} onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
       <div className={`md:col-span-1 ${selectWrapperStyle}`}>
         <label htmlFor="search-city" className="sr-only">City</label>
         <select
@@ -158,7 +160,7 @@ export function SearchBarWithChips({ onSubmit, loading, initialChips = {}, initi
         <button
           type="submit"
           disabled={loading}
-          className="w-full flex items-center justify-center gap-2 rounded-[8px] bg-[#2563EB] px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[#1d4ed8] disabled:opacity-50 transition-colors"
+          className="w-full flex items-center justify-center gap-2 rounded-[8px] bg-[var(--color-primary)] px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[var(--color-primary-hover)] disabled:opacity-50 transition-colors"
         >
           <Search size={16} />
           {loading ? 'Searching…' : 'Search'}

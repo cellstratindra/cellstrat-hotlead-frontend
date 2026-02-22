@@ -486,19 +486,39 @@ export interface GmailStatusResponse {
   message?: string
 }
 
+function wrapNetworkError(err: unknown, context: string): never {
+  const msg =
+    err instanceof Error && (err.message === 'Failed to fetch' || err.name === 'TypeError')
+      ? `Cannot reach backend at ${API_BASE}. Check VITE_API_URL and CORS for this origin.`
+      : err instanceof Error
+        ? err.message
+        : 'Request failed'
+  throw new Error(`${context}: ${msg}`)
+}
+
 export async function getGmailAuthUrl(userId: string): Promise<{ url: string }> {
-  const res = await fetch(`${API_BASE}/api/gmail/auth-url?user_id=${encodeURIComponent(userId)}`)
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }))
-    throw new Error(typeof err?.detail === 'string' ? err.detail : 'Failed to get Gmail auth URL')
+  try {
+    const res = await fetch(`${API_BASE}/api/gmail/auth-url?user_id=${encodeURIComponent(userId)}`)
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }))
+      throw new Error(typeof err?.detail === 'string' ? err.detail : 'Failed to get Gmail auth URL')
+    }
+    return res.json() as Promise<{ url: string }>
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith('Cannot reach backend')) throw e
+    wrapNetworkError(e, 'Gmail auth URL')
   }
-  return res.json() as Promise<{ url: string }>
 }
 
 export async function getGmailStatus(userId: string): Promise<GmailStatusResponse> {
-  const res = await fetch(`${API_BASE}/api/gmail/status?user_id=${encodeURIComponent(userId)}`)
-  if (!res.ok) throw new Error('Failed to get Gmail status')
-  return res.json() as Promise<GmailStatusResponse>
+  try {
+    const res = await fetch(`${API_BASE}/api/gmail/status?user_id=${encodeURIComponent(userId)}`)
+    if (!res.ok) throw new Error('Failed to get Gmail status')
+    return res.json() as Promise<GmailStatusResponse>
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith('Cannot reach backend')) throw e
+    wrapNetworkError(e, 'Gmail status')
+  }
 }
 
 export async function revokeGmail(userId: string): Promise<void> {
