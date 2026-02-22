@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Search } from 'lucide-react';
-import { INDIA_CITIES } from '../constants/cities';
-import { HEALTHCARE_SPECIALTIES } from '../constants/specialties';
+import { INDIA_CITIES, CITY_OTHER } from '../constants/cities';
+import { HEALTHCARE_SPECIALTIES, SPECIALTY_OTHER } from '../constants/specialties';
 
 export interface SearchFilters {
   sort_by: string;
@@ -35,72 +35,130 @@ interface SearchBarProps {
 }
 
 export function SearchBarWithChips({ onSubmit, loading, initialChips = {}, initialFilters = {} }: SearchBarProps) {
-  const [search, setSearch] = useState<SearchChips>({
-    city: initialChips.city || 'Bangalore',
-    specialty: initialChips.specialty || 'Healthcare',
-    region: initialChips.region || 'India',
+  const [search, setSearch] = useState<SearchChips>(() => {
+    const city = initialChips.city || 'Bangalore';
+    const specialty = initialChips.specialty || 'General practice';
+    const region = initialChips.region || 'India';
+    return {
+      city: INDIA_CITIES.includes(city as (typeof INDIA_CITIES)[number]) ? city : CITY_OTHER,
+      specialty: HEALTHCARE_SPECIALTIES.includes(specialty as (typeof HEALTHCARE_SPECIALTIES)[number]) ? specialty : SPECIALTY_OTHER,
+      region: !region || region === 'India' ? 'India' : 'Other',
+    };
   });
-  const [query, setQuery] = useState('India Kidney');
+  const [customCity, setCustomCity] = useState(() =>
+    initialChips.city && !INDIA_CITIES.includes(initialChips.city as (typeof INDIA_CITIES)[number]) ? initialChips.city : ''
+  );
+  const [customSpecialty, setCustomSpecialty] = useState(() =>
+    initialChips.specialty && !HEALTHCARE_SPECIALTIES.includes(initialChips.specialty as (typeof HEALTHCARE_SPECIALTIES)[number]) ? initialChips.specialty : ''
+  );
+  const [customRegion, setCustomRegion] = useState(() =>
+    initialChips.region && initialChips.region !== 'India' ? initialChips.region : ''
+  );
+  const [query, setQuery] = useState('');
 
   const filters = { ...defaultFilters, ...initialFilters };
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // The query can be integrated into the specialty or a new field if the API supports it.
-    // For now, we pass it as part of the specialty.
+    const cityValue = search.city === CITY_OTHER ? customCity.trim() : search.city;
+    const specialtyValue = search.specialty === SPECIALTY_OTHER ? customSpecialty.trim() : search.specialty;
+    const regionValue = search.region === 'Other' ? customRegion.trim() : search.region;
+    const specialtyWithKeywords = query.trim() ? `${specialtyValue} ${query.trim()}`.trim() : specialtyValue;
     const submissionChips: SearchChips = {
-      ...search,
-      specialty: `${search.specialty} ${query}`.trim(),
+      city: cityValue || search.city,
+      specialty: specialtyWithKeywords || specialtyValue,
+      region: regionValue || search.region,
     };
     onSubmit(submissionChips, filters);
   }
 
-  const inputStyle = "w-full rounded-md border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500";
+  const inputStyle = "w-full rounded-[8px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none relative z-0";
+  const selectWrapperStyle = "relative z-10";
 
   return (
-    <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
-      <div className="md:col-span-1">
-        <select 
-          value={search.city}
+    <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+      <div className={`md:col-span-1 ${selectWrapperStyle}`}>
+        <label htmlFor="search-city" className="sr-only">City</label>
+        <select
+          id="search-city"
+          value={INDIA_CITIES.includes(search.city as typeof INDIA_CITIES[number]) ? search.city : CITY_OTHER}
           onChange={e => setSearch(s => ({ ...s, city: e.target.value }))}
           className={inputStyle}
         >
           {INDIA_CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+          <option value={CITY_OTHER}>Other</option>
         </select>
+        {search.city === CITY_OTHER && (
+          <input
+            type="text"
+            value={customCity}
+            onChange={e => setCustomCity(e.target.value)}
+            placeholder="Enter city name"
+            className={`${inputStyle} mt-2 shadow-[var(--shadow-dropdown)]`}
+            aria-label="Custom city"
+          />
+        )}
       </div>
-      <div className="md:col-span-1">
-        <select 
-          value={search.specialty}
-          onChange={e => setSearch(s => ({ ...s, specialty: e.target.value }))} 
+      <div className={`md:col-span-1 ${selectWrapperStyle}`}>
+        <label htmlFor="search-specialty" className="sr-only">Specialty</label>
+        <select
+          id="search-specialty"
+          value={HEALTHCARE_SPECIALTIES.includes(search.specialty as typeof HEALTHCARE_SPECIALTIES[number]) ? search.specialty : SPECIALTY_OTHER}
+          onChange={e => setSearch(s => ({ ...s, specialty: e.target.value }))}
           className={inputStyle}
         >
           {HEALTHCARE_SPECIALTIES.map(s => <option key={s} value={s}>{s}</option>)}
+          <option value={SPECIALTY_OTHER}>Other</option>
         </select>
+        {search.specialty === SPECIALTY_OTHER && (
+          <input
+            type="text"
+            value={customSpecialty}
+            onChange={e => setCustomSpecialty(e.target.value)}
+            placeholder="Enter specialty (e.g. General practice)"
+            className={`${inputStyle} mt-2 shadow-[var(--shadow-dropdown)]`}
+            aria-label="Custom specialty"
+          />
+        )}
       </div>
-      <div className="md:col-span-1">
-        <select 
+      <div className={`md:col-span-1 ${selectWrapperStyle}`}>
+        <label htmlFor="search-region" className="sr-only">Region</label>
+        <select
+          id="search-region"
           value={search.region}
-          onChange={e => setSearch(s => ({ ...s, region: e.target.value }))} 
+          onChange={e => setSearch(s => ({ ...s, region: e.target.value }))}
           className={inputStyle}
         >
           <option value="India">India</option>
-          {/* Add other regions/countries if necessary */}
+          <option value="Other">Other</option>
         </select>
-      </div>
-      <div className="md:col-span-1">
-          <input 
+        {search.region === 'Other' && (
+          <input
             type="text"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Search keywords..."
-            className={inputStyle}
+            value={customRegion}
+            onChange={e => setCustomRegion(e.target.value)}
+            placeholder="Enter region/country"
+            className={`${inputStyle} mt-2 shadow-[var(--shadow-dropdown)]`}
+            aria-label="Custom region"
           />
+        )}
+      </div>
+      <div className={`md:col-span-1 ${selectWrapperStyle}`}>
+        <label htmlFor="search-keywords" className="sr-only">Keywords</label>
+        <input
+          id="search-keywords"
+          type="text"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="e.g. India Kidney"
+          className={`${inputStyle} placeholder:text-slate-400`}
+        />
       </div>
       <div className="md:col-span-1">
         <button
           type="submit"
           disabled={loading}
-          className="w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          className="w-full flex items-center justify-center gap-2 rounded-[8px] bg-[#2563EB] px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[#1d4ed8] disabled:opacity-50 transition-colors"
         >
           <Search size={16} />
           {loading ? 'Searching…' : 'Search'}

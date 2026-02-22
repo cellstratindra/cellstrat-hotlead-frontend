@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/my-leads', label: 'My Leads' },
   { to: '/coverage', label: 'Coverage' },
+  { to: '/settings', label: 'Settings' },
 ] as const;
 
 export function AppLayout() {

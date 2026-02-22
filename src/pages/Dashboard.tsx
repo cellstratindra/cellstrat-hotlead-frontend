@@ -1,11 +1,14 @@
 import { useEffect, useState, useCallback, type FC } from 'react';
-import { searchLeads, saveLeads, enrichLeads, fetchMarketInsights, getStats, bulkUpdateLeads, type StatsResponse, type ScoreWeights } from '../api/client';
+import { useUser } from '@clerk/clerk-react';
+import { searchLeads, saveLeads, enrichLeads, fetchMarketInsights, getStats, getKpis, bulkUpdateLeads, type StatsResponse, type ScoreWeights } from '../api/client';
 import type { HotLead, MarketInsightsResponse } from '../types/leads';
 import { LeadCardGrid, getLeadSelectId } from '../components/LeadCardGrid';
 import { ExportCsvButton } from '../components/ExportCsvButton';
 import { CampaignDrawer } from '../components/CampaignDrawer';
 import { LeadDetailsDrawer, type LeadDetailsUpdates } from '../components/LeadDetailsDrawer';
 import { SearchBarWithChips, type SearchChips, type SearchFilters } from '../components/SearchBarWithChips';
+import { SearchProgressBar } from '../components/SearchProgressBar';
+import { KpiRibbon, type KpiRibbonData } from '../components/KpiRibbon';
 import { useSearchResults } from '../contexts/SearchResultsContext';
 import { X } from 'lucide-react';
 
@@ -23,9 +26,9 @@ const AiPoweredInsights: FC<AiPoweredInsightsProps> = ({ report, onClose, qualif
   if (!report) return null;
 
   return (
-    <aside className="fixed top-16 right-4 w-96 bg-white rounded-lg shadow-xl p-6 z-20">
+    <aside className="fixed top-16 right-4 w-96 bg-white rounded-[8px] shadow-[var(--shadow-dropdown)] p-6 z-20">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-bold text-slate-800">AI-Powered Insights</h2>
+        <h2 className="text-lg font-bold text-[#1E293B]">AI-Powered Insights</h2>
         <button onClick={onClose} className="text-slate-500 hover:text-slate-800"><X size={20} /></button>
       </div>
       <div className="space-y-6">
@@ -39,20 +42,21 @@ const AiPoweredInsights: FC<AiPoweredInsightsProps> = ({ report, onClose, qualif
             <h3 className="font-semibold text-slate-700 mb-2">Review Distribution</h3>
             <div className="bg-slate-50 p-4 rounded-lg text-center text-sm text-slate-500">[Chart Placeholder]</div>
         </div>
-        <div className="bg-slate-50 rounded-lg p-4">
+        <div className="bg-slate-50 rounded-[8px] p-4">
             <h3 className="font-semibold text-slate-700">Qualification Score</h3>
-            <p className="text-5xl font-bold text-blue-600">{qualificationScore}</p>
+            <p className="text-5xl font-bold text-[#2563EB]">{qualificationScore}</p>
             <p className="text-xs text-slate-500 mt-1">Reflects follow-up count and last contact recency for this market set.</p>
         </div>
-        <button className="w-full bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition-colors">Generate Insights</button>
+        <button className="w-full bg-[#2563EB] text-white font-semibold py-2 rounded-[8px] hover:bg-[#1d4ed8] transition-colors">Generate Insights</button>
       </div>
     </aside>
   );
 }
 
 export function Dashboard() {
+  const { user } = useUser();
   const { lastSearch, saveSearch } = useSearchResults();
-  const [searchChips, setSearchChips] = useState<SearchChips>(() => lastSearch?.searchChips ?? { city: 'Bangalore', specialty: 'Healthcare', region: 'India' });
+  const [searchChips, setSearchChips] = useState<SearchChips>(() => lastSearch?.searchChips ?? { city: 'Bangalore', specialty: 'General practice', region: 'India' });
   const [scoreWeights] = useState<ScoreWeights>(() => lastSearch?.scoreWeights ?? DEFAULT_SCORE_WEIGHTS);
   const [leads, setLeads] = useState<HotLead[]>(() => lastSearch?.leads ?? []);
   const [loading, setLoading] = useState(false);
@@ -68,6 +72,26 @@ export function Dashboard() {
   const [campaignDrawerOpen, setCampaignDrawerOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
+  const [kpis, setKpis] = useState<KpiRibbonData | null>(null);
+  const [kpisLoading, setKpisLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setKpisLoading(true);
+    const fallbackTimer = setTimeout(() => {
+      if (cancelled) return;
+      setKpisLoading(false);
+      setKpis((prev) => prev ?? null);
+    }, 6000);
+    getKpis()
+      .then((data) => { if (!cancelled) setKpis(data); })
+      .catch(() => { if (!cancelled) setKpis(null); })
+      .finally(() => {
+        if (!cancelled) setKpisLoading(false);
+        clearTimeout(fallbackTimer);
+      });
+    return () => { cancelled = true; clearTimeout(fallbackTimer); };
+  }, []);
 
   useEffect(() => {
     setSelectedIds(new Set());
@@ -83,7 +107,7 @@ export function Dashboard() {
     setSaveMessage(null);
     setSaving(true);
     try {
-      const ids = await saveLeads(leads, searchChips.city || undefined, searchChips.specialty || undefined, searchChips.region.trim() || undefined);
+      const ids = await saveLeads(leads, searchChips.city || undefined, searchChips.specialty || undefined, searchChips.region.trim() || undefined, user?.id ?? undefined);
       setSaveMessage(`Saved ${ids.length} lead(s) to My Leads.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
@@ -96,12 +120,14 @@ export function Dashboard() {
     if (leads.length === 0) return;
     setError(null);
     setEnriching(true);
+    const safetyTimer = setTimeout(() => setEnriching(false), 50000);
     try {
       const enriched = await enrichLeads(leads);
       setLeads(enriched);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Enrichment failed');
     } finally {
+      clearTimeout(safetyTimer);
       setEnriching(false);
     }
   }
@@ -110,6 +136,7 @@ export function Dashboard() {
     if (leads.length === 0) return;
     setError(null);
     setInsightsLoading(true);
+    const safetyTimer = setTimeout(() => setInsightsLoading(false), 50000);
     try {
       const report = await fetchMarketInsights(leads);
       setMarketReport(report.market_pulse || report.market_themes?.length ? report : null);
@@ -117,6 +144,7 @@ export function Dashboard() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to get insights');
     } finally {
+      clearTimeout(safetyTimer);
       setInsightsLoading(false);
     }
   }
@@ -170,7 +198,8 @@ export function Dashboard() {
       selectedLeads,
       searchChips.city || undefined,
       searchChips.specialty || undefined,
-      searchChips.region?.trim() || undefined
+      searchChips.region?.trim() || undefined,
+      user?.id ?? undefined
     );
     setSaveMessage(`Saved ${selectedLeads.length} lead(s) to My Leads.`);
     setSelectedIds(new Set());
@@ -186,17 +215,18 @@ export function Dashboard() {
   }
 
   return (
-    <div className="p-6 bg-slate-50 min-h-full">
-      <div className="max-w-screen-xl mx-auto">
+    <div className="p-6 bg-slate-50 min-h-full font-[family-name:var(--font-sans)] flex">
+      <div className="flex-1 min-w-0 max-w-screen-xl mx-auto">
+        <KpiRibbon data={kpis} loading={kpisLoading} />
         {stats != null && (
-          <div className="mb-5 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm">
+          <div className="mb-5 rounded-[8px] border border-slate-200 bg-white px-4 py-3 text-sm shadow-[var(--shadow-dropdown)]">
             <p className="text-slate-600">
-              <span className="font-semibold text-slate-800">Platform reach:</span> {stats.total_leads} saved leads (new: {stats.by_stage?.new ?? 0})
+              <span className="font-semibold text-[#1E293B]">Platform reach:</span> {stats.total_leads} saved leads (new: {stats.by_stage?.new ?? 0})
             </p>
           </div>
         )}
 
-        <div className="bg-white rounded-lg shadow-lg p-5 mb-8">
+        <div className="bg-white rounded-[8px] shadow-[var(--shadow-dropdown)] p-5 mb-8">
           <SearchBarWithChips 
               key={`search-${searchChips.city}-${searchChips.specialty}-${searchChips.region}`}
               onSubmit={handleSearch}
@@ -209,24 +239,24 @@ export function Dashboard() {
                 <button
                   onClick={() => setCampaignDrawerOpen(true)}
                   disabled={leads.length === 0}
-                  className="px-4 py-2 text-sm font-medium text-white rounded-lg shadow-sm bg-gradient-to-r from-violet-500 to-blue-600 hover:from-violet-600 hover:to-blue-700 disabled:opacity-50"
+                  className="px-4 py-2 text-sm font-medium text-white rounded-[8px] shadow-sm bg-gradient-to-r from-violet-500 to-[#2563EB] hover:from-violet-600 hover:to-[#1d4ed8] disabled:opacity-50"
                 >
                   Generate Campaign
                 </button>
                 <ExportCsvButton leads={leads} />
-                <button onClick={handleSaveAll} disabled={saving || leads.length === 0} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700 disabled:opacity-50">
+                <button onClick={handleSaveAll} disabled={saving || leads.length === 0} className="px-4 py-2 text-sm font-medium text-white bg-[#2563EB] rounded-[8px] shadow-sm hover:bg-[#1d4ed8] disabled:opacity-50">
                     {saving ? 'Saving...' : 'Save all'}
                 </button>
-                <button onClick={handleEnrich} disabled={enriching || leads.length === 0} className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg shadow-sm hover:bg-purple-700 disabled:opacity-50">
+                <button onClick={handleEnrich} disabled={enriching || leads.length === 0} className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-[8px] shadow-sm hover:bg-purple-700 disabled:opacity-50">
                     {enriching ? 'Enriching...' : 'Enrich with AI'}
                 </button>
-                <button onClick={handleGetInsights} disabled={insightsLoading || leads.length === 0} className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-lg shadow-sm hover:bg-orange-600 disabled:opacity-50">
+                <button onClick={handleGetInsights} disabled={insightsLoading || leads.length === 0} className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-[8px] shadow-sm hover:bg-orange-600 disabled:opacity-50">
                     {insightsLoading ? 'Getting...' : 'Get Insights'}
                 </button>
                 <button
                   onClick={() => setDetailsDrawerOpen(true)}
                   disabled={selectedIds.size === 0}
-                  className="px-4 py-2 text-sm font-medium text-white bg-slate-600 rounded-lg shadow-sm hover:bg-slate-700 disabled:opacity-50"
+                  className="px-4 py-2 text-sm font-medium text-white bg-slate-600 rounded-[8px] shadow-sm hover:bg-slate-700 disabled:opacity-50"
                 >
                   Add details {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
                 </button>
@@ -238,9 +268,8 @@ export function Dashboard() {
         {saveMessage && <p className="mb-3 text-sm text-green-600">{saveMessage}</p>}
         
         {loading ? (
-          <div className="text-center py-16">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent mx-auto" />
-            <p className="mt-3 text-slate-500">Searching for clinics...</p>
+          <div className="py-16 flex justify-center items-start">
+            <SearchProgressBar active={loading} />
           </div>
         ) : (
           <LeadCardGrid
@@ -252,8 +281,8 @@ export function Dashboard() {
         )}
 
         {!loading && leads.length === 0 && (
-            <div className="text-center py-16 bg-white rounded-lg shadow-md">
-                <h3 className="text-lg font-semibold text-slate-800">No leads found</h3>
+            <div className="text-center py-16 bg-white rounded-[8px] shadow-[var(--shadow-dropdown)]">
+                <h3 className="text-lg font-semibold text-[#1E293B]">No leads found</h3>
                 <p className="mt-2 text-slate-500">Use the search bar above to find new leads.</p>
             </div>
         )}

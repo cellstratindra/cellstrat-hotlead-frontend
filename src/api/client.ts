@@ -12,8 +12,24 @@ import type {
 } from '../types/leads'
 
 /** Use VITE_API_URL from env: local dev = http://localhost:8000, production = deployed backend URL. */
-const API_BASE =
+export const API_BASE =
   import.meta.env.VITE_API_URL ?? 'https://hotlead-backend-926771612705.us-central1.run.app'
+
+/** Race fetch with a timeout so requests don't hang forever. On abort, throws a clear timeout error. */
+function fetchWithTimeout(url: string, options: RequestInit & { timeoutMs?: number } = {}): Promise<Response> {
+  const { timeoutMs = 12000, ...fetchOptions } = options
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
+  return fetch(url, { ...fetchOptions, signal: controller.signal })
+    .then((res) => res)
+    .catch((err: unknown) => {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new Error('Request timed out. Please try again.')
+      }
+      throw err
+    })
+    .finally(() => clearTimeout(timeout))
+}
 
 /** Normalize a single lead from API so all fields are defined (backend sends snake_case). */
 function normalizeLead(raw: Record<string, unknown>): HotLead {
@@ -115,11 +131,14 @@ export async function fetchReviewSummary(
   }
 }
 
+const CAMPAIGN_DRAFT_TIMEOUT_MS = 60000
+
 export async function fetchCampaignDraft(lead: HotLead): Promise<CampaignDraftResponse> {
-  const res = await fetch(`${API_BASE}/api/leads/campaign-draft`, {
+  const res = await fetchWithTimeout(`${API_BASE}/api/leads/campaign-draft`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ lead }),
+    timeoutMs: CAMPAIGN_DRAFT_TIMEOUT_MS,
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }))
@@ -175,12 +194,15 @@ export async function fetchReviewChat(
   }
 }
 
+const ENRICH_TIMEOUT_MS = 45000
+
 export async function enrichLeads(leads: HotLead[]): Promise<HotLead[]> {
   if (leads.length === 0) return []
-  const res = await fetch(`${API_BASE}/api/leads/enrich`, {
+  const res = await fetchWithTimeout(`${API_BASE}/api/leads/enrich`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ leads }),
+    timeoutMs: ENRICH_TIMEOUT_MS,
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }))
@@ -192,14 +214,17 @@ export async function enrichLeads(leads: HotLead[]): Promise<HotLead[]> {
   return Array.isArray(data?.leads) ? data.leads.map((l) => normalizeLead(l as Record<string, unknown>)) : []
 }
 
+const INSIGHTS_TIMEOUT_MS = 45000
+
 export async function fetchMarketInsights(leads: HotLead[]): Promise<MarketInsightsResponse> {
   if (leads.length === 0) {
     return { market_themes: [], prioritized_place_ids: [], market_pulse: '' }
   }
-  const res = await fetch(`${API_BASE}/api/leads/market-insights`, {
+  const res = await fetchWithTimeout(`${API_BASE}/api/leads/market-insights`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ leads }),
+    timeoutMs: INSIGHTS_TIMEOUT_MS,
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }))
@@ -243,6 +268,7 @@ export interface SavedLead {
   at_risk?: boolean
   contact_email?: string | null
   director_name?: string | null
+  assigned_to?: string | null
 }
 
 export interface LeadUpdateParams {
@@ -286,14 +312,22 @@ function normalizeSavedLead(raw: Record<string, unknown>): SavedLead {
     at_risk: Boolean(raw?.at_risk),
     contact_email: raw?.contact_email != null ? String(raw.contact_email) : null,
     director_name: raw?.director_name != null ? String(raw.director_name) : null,
+    assigned_to: raw?.assigned_to != null ? String(raw.assigned_to) : null,
   }
+}
+
+export interface AssignableUser {
+  id: string
+  email?: string
+  name?: string
 }
 
 export async function saveLeads(
   leads: HotLead[],
   sourceCity?: string,
   sourceSpecialty?: string,
-  sourceRegion?: string
+  sourceRegion?: string,
+  userId?: string | null
 ): Promise<number[]> {
   const res = await fetch(`${API_BASE}/api/leads/save`, {
     method: 'POST',
@@ -303,6 +337,7 @@ export async function saveLeads(
       source_city: sourceCity || null,
       source_specialty: sourceSpecialty || null,
       source_region: sourceRegion || null,
+      user_id: userId && userId.trim() ? userId.trim() : null,
     }),
   })
   if (!res.ok) {
@@ -313,16 +348,45 @@ export async function saveLeads(
   return Array.isArray(data?.saved_ids) ? data.saved_ids : []
 }
 
-export async function getLeads(params?: { stage?: string; source_city?: string; source_specialty?: string }): Promise<SavedLead[]> {
+export async function getLeads(params?: {
+  stage?: string
+  source_city?: string
+  source_specialty?: string
+  scope?: 'my' | 'org'
+  user_id?: string | null
+}): Promise<SavedLead[]> {
   const q = new URLSearchParams()
   if (params?.stage) q.set('stage', params.stage)
   if (params?.source_city) q.set('source_city', params.source_city)
   if (params?.source_specialty) q.set('source_specialty', params.source_specialty)
+  if (params?.scope) q.set('scope', params.scope)
+  if (params?.user_id) q.set('user_id', params.user_id)
   const url = `${API_BASE}/api/leads${q.toString() ? `?${q}` : ''}`
   const res = await fetch(url)
   if (!res.ok) throw new Error('Failed to load leads')
   const data = (await res.json()) as { leads?: unknown[] }
   return Array.isArray(data?.leads) ? data.leads.map((l) => normalizeSavedLead(l as Record<string, unknown>)) : []
+}
+
+export async function getAssignableUsers(): Promise<AssignableUser[]> {
+  const res = await fetch(`${API_BASE}/api/leads/assignable-users`)
+  if (!res.ok) throw new Error('Failed to load assignable users')
+  const data = (await res.json()) as { users?: AssignableUser[] }
+  return Array.isArray(data?.users) ? data.users : []
+}
+
+export async function assignLead(leadId: number, userId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/leads/${leadId}/assign`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_id: userId }),
+  })
+  if (!res.ok) throw new Error('Failed to assign lead')
+}
+
+export async function unassignLead(leadId: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/leads/${leadId}/unassign`, { method: 'POST' })
+  if (!res.ok) throw new Error('Failed to unassign lead')
 }
 
 export async function getLead(id: number): Promise<LeadDetail> {
@@ -338,11 +402,11 @@ export async function getLead(id: number): Promise<LeadDetail> {
   return { ...lead, notes, stage_history }
 }
 
-export async function addNote(leadId: number, content: string): Promise<void> {
+export async function addNote(leadId: number, content: string, userId?: string | null): Promise<void> {
   const res = await fetch(`${API_BASE}/api/leads/${leadId}/notes`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, user_id: userId ?? undefined }),
   })
   if (!res.ok) throw new Error('Failed to add note')
 }
@@ -413,6 +477,114 @@ export async function addFollowUp(leadId: number, type: 'email' | 'call' | 'manu
   if (!res.ok) throw new Error('Failed to add follow-up')
 }
 
+// --- Gmail integration ---
+
+export interface GmailStatusResponse {
+  connected: boolean
+  email?: string | null
+  picture?: string | null
+  message?: string
+}
+
+export async function getGmailAuthUrl(userId: string): Promise<{ url: string }> {
+  const res = await fetch(`${API_BASE}/api/gmail/auth-url?user_id=${encodeURIComponent(userId)}`)
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }))
+    throw new Error(typeof err?.detail === 'string' ? err.detail : 'Failed to get Gmail auth URL')
+  }
+  return res.json() as Promise<{ url: string }>
+}
+
+export async function getGmailStatus(userId: string): Promise<GmailStatusResponse> {
+  const res = await fetch(`${API_BASE}/api/gmail/status?user_id=${encodeURIComponent(userId)}`)
+  if (!res.ok) throw new Error('Failed to get Gmail status')
+  return res.json() as Promise<GmailStatusResponse>
+}
+
+export async function revokeGmail(userId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/gmail/revoke`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_id: userId }),
+  })
+  if (!res.ok) throw new Error('Failed to revoke Gmail')
+}
+
+export async function testGmailConnection(userId: string): Promise<{ success: boolean; message?: string }> {
+  const res = await fetch(`${API_BASE}/api/gmail/test-connection`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_id: userId }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }))
+    throw new Error(typeof err?.detail === 'string' ? err.detail : 'Test connection failed')
+  }
+  return res.json() as Promise<{ success: boolean; message?: string }>
+}
+
+export interface GmailSendParams {
+  user_id: string
+  to: string
+  subject?: string
+  body?: string
+  cc?: string | null
+  bcc?: string | null
+  lead_id?: number | null
+}
+
+export async function sendGmail(params: GmailSendParams): Promise<{ success: boolean; message_id?: string }> {
+  const res = await fetch(`${API_BASE}/api/gmail/send`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      user_id: params.user_id,
+      to: params.to,
+      subject: params.subject ?? '',
+      body: params.body ?? '',
+      cc: params.cc ?? null,
+      bcc: params.bcc ?? null,
+      lead_id: params.lead_id ?? null,
+    }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }))
+    const detail = err?.detail
+    throw new Error(typeof detail === 'string' ? detail : 'Gmail send failed')
+  }
+  return res.json() as Promise<{ success: boolean; message_id?: string }>
+}
+
+export interface GmailDraftParams {
+  user_id: string
+  to: string
+  subject?: string
+  body?: string
+  cc?: string | null
+  bcc?: string | null
+}
+
+export async function createGmailDraft(params: GmailDraftParams): Promise<{ success: boolean; draft_id?: string }> {
+  const res = await fetch(`${API_BASE}/api/gmail/draft`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      user_id: params.user_id,
+      to: params.to,
+      subject: params.subject ?? '',
+      body: params.body ?? '',
+      cc: params.cc ?? null,
+      bcc: params.bcc ?? null,
+    }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }))
+    const detail = err?.detail
+    throw new Error(typeof detail === 'string' ? detail : 'Gmail draft failed')
+  }
+  return res.json() as Promise<{ success: boolean; draft_id?: string }>
+}
+
 /** Trigger download of CRM export CSV with optional filters. */
 export function exportForCrmUrl(params?: { stage?: string; source_city?: string; source_specialty?: string }): string {
   const q = new URLSearchParams()
@@ -469,10 +641,11 @@ export async function searchLeads(params: SearchParams): Promise<SearchResponse>
     budget_max: params.budget_max ?? null,
     score_weights: params.score_weights ?? null,
   }
-  const res = await fetch(`${API_BASE}/api/leads/search`, {
+  const res = await fetchWithTimeout(`${API_BASE}/api/leads/search`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    timeoutMs: 45000,
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }))
@@ -535,6 +708,29 @@ export async function getStats(): Promise<StatsResponse> {
   const res = await fetch(`${API_BASE}/api/leads/stats`)
   if (!res.ok) throw new Error('Failed to load stats')
   return res.json() as Promise<StatsResponse>
+}
+
+export interface KpisResponse {
+  demo_to_deal: { actual: number; target: number }
+  no_show_rate_trend: { name: string; value: number }[]
+  lead_response_time_hours: number
+}
+
+const KPIS_TIMEOUT_MS = 8000
+
+export async function getKpis(): Promise<{
+  demoToDeal: { actual: number; target: number }
+  noShowRateTrend: { name: string; value: number }[]
+  leadResponseTimeHours: number
+}> {
+  const res = await fetchWithTimeout(`${API_BASE}/api/analytics/kpis`, { timeoutMs: KPIS_TIMEOUT_MS })
+  if (!res.ok) return Promise.reject(new Error('Failed to load KPIs'))
+  const raw = (await res.json()) as KpisResponse
+  return {
+    demoToDeal: raw.demo_to_deal ?? { actual: 0, target: 10 },
+    noShowRateTrend: Array.isArray(raw.no_show_rate_trend) ? raw.no_show_rate_trend : [],
+    leadResponseTimeHours: Number(raw.lead_response_time_hours ?? 0),
+  }
 }
 
 // --- CellAssist product feature backlog ---

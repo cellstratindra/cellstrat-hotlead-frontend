@@ -8,6 +8,7 @@ import { LeadDetailPage } from './pages/LeadDetail'
 import { LeadLifecycleDashboard } from './pages/LeadLifecycleDashboard'
 import { MyLeads } from './pages/MyLeads'
 import { ProductBacklog } from './pages/ProductBacklog'
+import { Settings } from './pages/Settings'
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
   return (
@@ -55,6 +56,7 @@ export default function App() {
         <Route path="/my-leads" element={<MyLeads />} />
         <Route path="/coverage" element={<Coverage />} />
         <Route path="/product-backlog" element={<ProductBacklog />} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="/leads/:id" element={<LeadDetailPage />} />
       </Route>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

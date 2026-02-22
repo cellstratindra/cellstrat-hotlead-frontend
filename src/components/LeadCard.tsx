@@ -1,16 +1,24 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import { Zap, User } from 'lucide-react'
 import type { HotLead } from '../types/leads'
 import { ReviewsModal } from './ReviewsModal'
-import { explainScore } from '../api/client'
+import { TeamDispatchPopover } from './TeamDispatchPopover'
+import { explainScore, type AssignableUser } from '../api/client'
 
 interface LeadCardProps {
-  lead: HotLead
+  lead: HotLead & { id?: number; assigned_to?: string | null }
   /** e.g. "Cardiology in Bangalore" for benchmark label */
   marketLabel?: string | null
   /** Show checkbox for multi-select */
   showCheckbox?: boolean
   selected?: boolean
   onToggle?: (checked: boolean) => void
+  /** When set, show Assigned To area and Team Dispatch popover (saved leads only) */
+  assignableUsers?: AssignableUser[]
+  currentUserId?: string | null
+  onAssign?: (userId: string) => Promise<void>
+  onUnassign?: () => Promise<void>
+  onAssignmentChange?: () => void
 }
 
 function reviewSnippet(lead: HotLead): string {
@@ -35,13 +43,41 @@ function matchBandLabel(band: string | null | undefined): string {
   }
 }
 
-export function LeadCard({ lead, marketLabel, showCheckbox, selected, onToggle }: LeadCardProps) {
+export function LeadCard({
+  lead,
+  marketLabel,
+  showCheckbox,
+  selected,
+  onToggle,
+  assignableUsers,
+  currentUserId,
+  onAssign,
+  onUnassign,
+  onAssignmentChange,
+}: LeadCardProps) {
   const [reviewsOpen, setReviewsOpen] = useState(false)
+  const [dispatchOpen, setDispatchOpen] = useState(false)
   const [aiExplanation, setAiExplanation] = useState<string | null>(null)
   const [explainLoading, setExplainLoading] = useState(false)
+  const assignAnchorRef = useRef<HTMLButtonElement>(null)
   const snippet = reviewSnippet(lead)
   const score = lead.recommendation_score != null ? Math.round(lead.recommendation_score) : null
   const tier = lead.tier ?? null
+  const stage = (lead as HotLead & { stage?: string }).stage
+  const showWorkflowBadge = stage === 'qualified'
+  const leadId = lead.id
+  const assignedTo = lead.assigned_to ?? null
+  const showAssignedTo =
+    leadId != null && (assignableUsers?.length || onAssign) && (onAssign != null || onUnassign != null)
+
+  async function handleAssign(userId: string) {
+    if (onAssign) await onAssign(userId)
+    onAssignmentChange?.()
+  }
+  async function handleUnassign() {
+    if (onUnassign) await onUnassign()
+    onAssignmentChange?.()
+  }
 
   async function handleExplainScore() {
     setExplainLoading(true)
@@ -89,6 +125,12 @@ export function LeadCard({ lead, marketLabel, showCheckbox, selected, onToggle }
               {tier && (
                 <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm font-semibold text-slate-800">
                   {tier}
+                </span>
+              )}
+              {showWorkflowBadge && (
+                <span className="inline-flex items-center gap-1 rounded-[8px] bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700" title="In nurture sequence">
+                  <Zap className="h-3 w-3" aria-hidden />
+                  Nurture
                 </span>
               )}
             </div>
@@ -169,6 +211,39 @@ export function LeadCard({ lead, marketLabel, showCheckbox, selected, onToggle }
             <p className="line-clamp-2 text-sm text-slate-600" title={snippet}>
               {snippet}
             </p>
+          )}
+
+          {showAssignedTo && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500">Assigned to</span>
+              <button
+                ref={assignAnchorRef}
+                type="button"
+                onClick={() => setDispatchOpen((o) => !o)}
+                className="flex items-center gap-1.5 rounded-[8px] border border-slate-200 bg-slate-50 px-2 py-1 text-sm hover:bg-slate-100"
+                aria-label="Assign or change assignment"
+              >
+                {assignedTo ? (
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#2563EB]/15 text-xs font-medium text-[#2563EB]">
+                    {assignedTo.slice(0, 2).toUpperCase()}
+                  </span>
+                ) : (
+                  <User className="h-4 w-4 text-slate-400" />
+                )}
+                <span className="text-slate-700">{assignedTo ? assignedTo.slice(0, 12) : 'Unassigned'}</span>
+              </button>
+              <TeamDispatchPopover
+                open={dispatchOpen}
+                onClose={() => setDispatchOpen(false)}
+                anchorRef={assignAnchorRef}
+                leadId={leadId!}
+                assignedTo={assignedTo}
+                users={assignableUsers ?? []}
+                currentUserId={currentUserId}
+                onAssign={handleAssign}
+                onUnassign={handleUnassign}
+              />
+            </div>
           )}
 
           <div className="mt-auto pt-2">

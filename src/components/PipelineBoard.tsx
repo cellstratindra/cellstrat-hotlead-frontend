@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
+import { User } from 'lucide-react'
 import {
   DndContext,
   type DragEndEvent,
@@ -11,8 +12,9 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import type { SavedLead } from '../api/client'
+import type { SavedLead, AssignableUser } from '../api/client'
 import { updateLeadStage } from '../api/client'
+import { TeamDispatchPopover } from './TeamDispatchPopover'
 
 const STAGES = ['new', 'contacted', 'meeting_booked', 'qualified', 'nurtured']
 
@@ -44,11 +46,28 @@ function LeadCardContent({
   )
 }
 
-function DraggableLeadCard({ lead }: { lead: SavedLead }) {
+function DraggableLeadCard({
+  lead,
+  assignableUsers,
+  currentUserId,
+  onAssign,
+  onUnassign,
+}: {
+  lead: SavedLead
+  assignableUsers: AssignableUser[]
+  currentUserId: string | null
+  onAssign: (leadId: number, userId: string) => Promise<void>
+  onUnassign: (leadId: number) => Promise<void>
+}) {
+  const [dispatchOpen, setDispatchOpen] = useState(false)
+  const assignAnchorRef = useRef<HTMLButtonElement>(null)
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `lead-${lead.id}`,
     data: { lead },
   })
+  const assignedTo = lead.assigned_to ?? null
+  const showAssign = assignableUsers.length > 0
+
   return (
     <div
       ref={setNodeRef}
@@ -57,6 +76,40 @@ function DraggableLeadCard({ lead }: { lead: SavedLead }) {
       className={`rounded-lg border border-slate-200 bg-white p-3 shadow-sm cursor-grab hover:border-slate-300 ${isDragging ? 'opacity-50' : ''}`}
     >
       <LeadCardContent lead={lead} showLink />
+      {showAssign && (
+        <div className="mt-2 flex items-center gap-1.5">
+          <button
+            ref={assignAnchorRef}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              setDispatchOpen((o) => !o)
+            }}
+            className="flex items-center gap-1 rounded-[8px] border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs hover:bg-slate-100"
+            aria-label="Assign lead"
+          >
+            {assignedTo ? (
+              <span className="h-5 w-5 rounded-full bg-[#2563EB]/15 flex items-center justify-center text-[10px] font-medium text-[#2563EB]">
+                {assignedTo.slice(0, 2).toUpperCase()}
+              </span>
+            ) : (
+              <User className="h-3.5 w-3.5 text-slate-400" />
+            )}
+            <span className="text-slate-600">{assignedTo ? assignedTo.slice(0, 8) : 'Assign'}</span>
+          </button>
+          <TeamDispatchPopover
+            open={dispatchOpen}
+            onClose={() => setDispatchOpen(false)}
+            anchorRef={assignAnchorRef}
+            leadId={lead.id}
+            assignedTo={assignedTo}
+            users={assignableUsers}
+            currentUserId={currentUserId}
+            onAssign={(userId) => onAssign(lead.id, userId)}
+            onUnassign={() => onUnassign(lead.id)}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -64,9 +117,17 @@ function DraggableLeadCard({ lead }: { lead: SavedLead }) {
 function DroppableColumn({
   stage,
   leads,
+  assignableUsers,
+  currentUserId,
+  onAssign,
+  onUnassign,
 }: {
   stage: string
   leads: SavedLead[]
+  assignableUsers: AssignableUser[]
+  currentUserId: string | null
+  onAssign: (leadId: number, userId: string) => Promise<void>
+  onUnassign: (leadId: number) => Promise<void>
 }) {
   const { isOver, setNodeRef } = useDroppable({ id: `stage-${stage}` })
 
@@ -82,7 +143,14 @@ function DroppableColumn({
       </h3>
       <div className="space-y-2">
         {leads.map((lead) => (
-          <DraggableLeadCard key={lead.id} lead={lead} />
+          <DraggableLeadCard
+            key={lead.id}
+            lead={lead}
+            assignableUsers={assignableUsers}
+            currentUserId={currentUserId}
+            onAssign={onAssign}
+            onUnassign={onUnassign}
+          />
         ))}
       </div>
     </div>
@@ -92,9 +160,20 @@ function DroppableColumn({
 interface PipelineBoardProps {
   leads: SavedLead[]
   onLeadsChange: (updated: SavedLead[]) => void
+  assignableUsers?: AssignableUser[]
+  currentUserId?: string | null
+  onAssign?: (leadId: number, userId: string) => Promise<void>
+  onUnassign?: (leadId: number) => Promise<void>
 }
 
-export function PipelineBoard({ leads, onLeadsChange }: PipelineBoardProps) {
+export function PipelineBoard({
+  leads,
+  onLeadsChange,
+  assignableUsers = [],
+  currentUserId = null,
+  onAssign = async () => {},
+  onUnassign = async () => {},
+}: PipelineBoardProps) {
   const [activeLead, setActiveLead] = useState<SavedLead | null>(null)
 
   const sensors = useSensors(
@@ -151,6 +230,10 @@ export function PipelineBoard({ leads, onLeadsChange }: PipelineBoardProps) {
             key={stage}
             stage={stage}
             leads={leadsByStage[stage] ?? []}
+            assignableUsers={assignableUsers}
+            currentUserId={currentUserId}
+            onAssign={onAssign}
+            onUnassign={onUnassign}
           />
         ))}
       </div>

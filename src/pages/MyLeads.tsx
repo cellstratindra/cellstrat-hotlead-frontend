@@ -1,36 +1,68 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { bulkUpdateLeads, exportForCrmUrl, getLeads, type SavedLead } from '../api/client'
+import { useUser } from '@clerk/clerk-react'
+import {
+  bulkUpdateLeads,
+  exportForCrmUrl,
+  getLeads,
+  getAssignableUsers,
+  assignLead,
+  unassignLead,
+  type SavedLead,
+  type AssignableUser,
+} from '../api/client'
 import { PipelineBoard } from '../components/PipelineBoard'
 import { LeadDetailsDrawer, type LeadDetailsUpdates } from '../components/LeadDetailsDrawer'
 
 const STAGES = ['new', 'contacted', 'meeting_booked', 'qualified', 'nurtured']
 type ViewMode = 'list' | 'pipeline'
+type LeadScope = 'my' | 'org'
 
 export function MyLeads() {
+  const { user } = useUser()
   const [leads, setLeads] = useState<SavedLead[]>([])
   const [loading, setLoading] = useState(true)
   const [stageFilter, setStageFilter] = useState<string>('')
   const [viewMode, setViewMode] = useState<ViewMode>('list')
+  const [leadScope, setLeadScope] = useState<LeadScope>('my')
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false)
+  const [assignableUsers, setAssignableUsers] = useState<AssignableUser[]>([])
+
+  useEffect(() => {
+    getAssignableUsers().then(setAssignableUsers).catch(() => setAssignableUsers([]))
+  }, [])
 
   const fetchLeads = useCallback(() => {
-    getLeads(viewMode === 'pipeline' ? undefined : stageFilter ? { stage: stageFilter } : undefined)
+    const params: Parameters<typeof getLeads>[0] =
+      viewMode === 'pipeline' ? undefined : stageFilter ? { stage: stageFilter } : undefined
+    const withScope = {
+      ...params,
+      scope: leadScope,
+      user_id: leadScope === 'my' ? user?.id ?? null : undefined,
+    }
+    getLeads(withScope)
       .then(setLeads)
       .catch(() => setLeads([]))
       .finally(() => setLoading(false))
-  }, [stageFilter, viewMode])
+  }, [stageFilter, viewMode, leadScope, user?.id])
 
   useEffect(() => {
     setLoading(true)
     let cancelled = false
-    getLeads(viewMode === 'pipeline' ? undefined : stageFilter ? { stage: stageFilter } : undefined)
+    const params: Parameters<typeof getLeads>[0] =
+      viewMode === 'pipeline' ? undefined : stageFilter ? { stage: stageFilter } : undefined
+    const withScope = {
+      ...params,
+      scope: leadScope,
+      user_id: leadScope === 'my' ? user?.id ?? null : undefined,
+    }
+    getLeads(withScope)
       .then((data) => { if (!cancelled) setLeads(data) })
       .catch(() => { if (!cancelled) setLeads([]) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [stageFilter, viewMode])
+  }, [stageFilter, viewMode, leadScope, user?.id])
 
   const selectedLeads = leads.filter((l) => selectedIds.has(l.id))
 
@@ -77,6 +109,25 @@ export function MyLeads() {
             >
               Pipeline
             </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-600">Lead view:</span>
+            <div className="flex rounded-[8px] border border-slate-200 p-0.5 bg-slate-100">
+              <button
+                type="button"
+                onClick={() => setLeadScope('my')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md ${leadScope === 'my' ? 'bg-white text-slate-900 shadow' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                My Leads
+              </button>
+              <button
+                type="button"
+                onClick={() => setLeadScope('org')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md ${leadScope === 'org' ? 'bg-white text-slate-900 shadow' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                Organization
+              </button>
+            </div>
           </div>
           {viewMode === 'list' && (
             <>
@@ -126,7 +177,20 @@ export function MyLeads() {
           <p className="text-gray-500">No saved leads. Search on the Dashboard and click &quot;Save all&quot;.</p>
         )}
         {!loading && leads.length > 0 && viewMode === 'pipeline' && (
-          <PipelineBoard leads={leads} onLeadsChange={setLeads} />
+          <PipelineBoard
+            leads={leads}
+            onLeadsChange={setLeads}
+            assignableUsers={assignableUsers}
+            currentUserId={user?.id ?? null}
+            onAssign={async (leadId, userId) => {
+              await assignLead(leadId, userId)
+              fetchLeads()
+            }}
+            onUnassign={async (leadId) => {
+              await unassignLead(leadId)
+              fetchLeads()
+            }}
+          />
         )}
         {!loading && leads.length > 0 && viewMode === 'list' && (
           <div className="overflow-x-auto rounded border border-gray-200 bg-white">
@@ -139,6 +203,7 @@ export function MyLeads() {
                   <th className="px-4 py-2 text-left font-medium text-gray-700">Name</th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">Rating</th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">Stage</th>
+                  <th className="px-4 py-2 text-left font-medium text-gray-700">Assigned</th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">Source</th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">Contact</th>
                   <th className="px-4 py-2 text-left font-medium text-gray-700">Action</th>
@@ -159,6 +224,20 @@ export function MyLeads() {
                     <td className="px-4 py-2 text-gray-900">{lead.name}</td>
                     <td className="px-4 py-2">{Number(lead.rating).toFixed(1)}</td>
                     <td className="px-4 py-2 capitalize">{lead.stage.replace(/_/g, ' ')}</td>
+                    <td className="px-4 py-2">
+                      {lead.assigned_to ? (
+                        <span
+                          className={`inline-flex rounded-[8px] px-2 py-0.5 text-xs font-medium ${
+                            lead.assigned_to === user?.id ? 'bg-[#2563EB]/10 text-[#2563EB]' : 'bg-slate-100 text-slate-700'
+                          }`}
+                          title={lead.assigned_to}
+                        >
+                          {lead.assigned_to === user?.id ? 'You' : 'Team'}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 text-xs">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-2 text-sm text-gray-600">
                       {[lead.source_specialty, lead.source_city, lead.source_region].filter(Boolean).join(', ') || '—'}
                     </td>

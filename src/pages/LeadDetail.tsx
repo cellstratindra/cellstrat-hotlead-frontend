@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import { useUser } from '@clerk/clerk-react'
 import {
   addNote,
   addFeatureOccurrence,
@@ -46,6 +47,11 @@ export function LeadDetailPage() {
   const [addMeetingSubmitting, setAddMeetingSubmitting] = useState(false)
   const [expandedMeetingId, setExpandedMeetingId] = useState<number | null>(null)
   const [precallBriefOpen, setPrecallBriefOpen] = useState(false)
+  const [trackingNoteContent, setTrackingNoteContent] = useState('')
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
+  const [trackingNoteSaving, setTrackingNoteSaving] = useState(false)
+  const trackingNoteDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const { user } = useUser()
 
   useEffect(() => {
     if (!id) return
@@ -73,7 +79,7 @@ export function LeadDetailPage() {
     if (!lead || !noteContent.trim()) return
     setSubmittingNote(true)
     try {
-      await addNote(lead.id, noteContent.trim())
+      await addNote(lead.id, noteContent.trim(), user?.id)
       const updated = await getLead(lead.id)
       setLead(updated)
       setNoteContent('')
@@ -81,6 +87,27 @@ export function LeadDetailPage() {
       setSubmittingNote(false)
     }
   }
+
+  useEffect(() => {
+    if (!lead || !trackingNoteContent.trim()) return
+    if (trackingNoteDebounceRef.current) clearTimeout(trackingNoteDebounceRef.current)
+    trackingNoteDebounceRef.current = setTimeout(async () => {
+      trackingNoteDebounceRef.current = null
+      setTrackingNoteSaving(true)
+      try {
+        await addNote(lead.id, trackingNoteContent.trim(), user?.id)
+        const updated = await getLead(lead.id)
+        setLead(updated)
+        setLastSavedAt(new Date())
+        setTrackingNoteContent('')
+      } finally {
+        setTrackingNoteSaving(false)
+      }
+    }, 1500)
+    return () => {
+      if (trackingNoteDebounceRef.current) clearTimeout(trackingNoteDebounceRef.current)
+    }
+  }, [lead?.id, trackingNoteContent, user?.id])
 
   async function handleStageChange(newStage: string) {
     if (!lead) return
@@ -93,6 +120,19 @@ export function LeadDetailPage() {
   const hasReviewText = reviews.length > 0 && reviews.some((r) => (r.text ?? '').trim())
   const sortedReviews = useMemo(() => sortReviews(reviews, reviewSort), [reviews, reviewSort])
   const displaySummary = (lead as { reviews_summary?: string | null })?.reviews_summary ?? reviewsSummaryLocal
+
+  const communicationTimeline = useMemo(() => {
+    if (!lead) return []
+    const items: { type: 'note' | 'stage'; id?: number; content?: string; stage?: string; created_at: string; user_id?: string | null }[] = []
+    for (const n of lead.notes) {
+      items.push({ type: 'note', id: n.id, content: n.content, created_at: n.created_at ?? '', user_id: (n as { user_id?: string | null }).user_id })
+    }
+    for (const h of lead.stage_history) {
+      items.push({ type: 'stage', stage: h.stage, created_at: h.created_at ?? '' })
+    }
+    items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    return items
+  }, [lead?.notes, lead?.stage_history])
 
   async function handleGenerateSummary() {
     if (!lead || !hasReviewText) return
@@ -334,38 +374,51 @@ export function LeadDetailPage() {
             )}
           </div>
         )}
-        <div className="mt-6 rounded border border-gray-200 bg-white p-4">
-          <h2 className="mb-2 font-semibold text-gray-900">Stage history</h2>
-          <ul className="list-inside list-disc text-sm text-gray-600">
-            {lead.stage_history.length === 0 && <li>No history yet</li>}
-            {lead.stage_history.map((h, i) => (
-              <li key={i}>{h.stage} — {h.created_at}</li>
+        <div className="mt-6 rounded-[8px] border border-slate-200 bg-white p-4 shadow-[var(--shadow-dropdown)]">
+          <h2 className="mb-3 font-semibold text-[#1E293B]">Communication Timeline</h2>
+          <ul className="space-y-3 max-h-64 overflow-y-auto">
+            {communicationTimeline.length === 0 && <li className="text-sm text-slate-500">No activity yet</li>}
+            {communicationTimeline.map((item, i) => (
+              <li key={item.type === 'note' ? `n-${item.id}` : `s-${i}`} className="flex gap-2 text-sm">
+                <span className="text-slate-400 shrink-0">{item.created_at}</span>
+                {item.type === 'note' ? (
+                  <span className="text-slate-700">
+                    Note: {item.content}
+                    {item.user_id && <span className="ml-1 text-slate-400">({item.user_id.slice(0, 8)}…)</span>}
+                  </span>
+                ) : (
+                  <span className="text-slate-600">Stage → <strong>{item.stage?.replace(/_/g, ' ')}</strong></span>
+                )}
+              </li>
             ))}
           </ul>
         </div>
-        <div className="mt-6 rounded border border-gray-200 bg-white p-4">
-          <h2 className="mb-2 font-semibold text-gray-900">Notes</h2>
-          <form onSubmit={handleAddNote} className="mb-4 flex gap-2">
+        <div className="mt-6 rounded-[8px] border border-slate-200 bg-white p-4 shadow-[var(--shadow-dropdown)]">
+          <h2 className="mb-2 font-semibold text-[#1E293B]">Tracking Note</h2>
+          <p className="text-xs text-slate-500 mb-2">Markdown supported. Auto-saves after you stop typing.</p>
+          <textarea
+            value={trackingNoteContent}
+            onChange={(e) => setTrackingNoteContent(e.target.value)}
+            placeholder="Add a note…"
+            className="w-full min-h-[80px] rounded-[8px] border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
+            rows={3}
+          />
+          <div className="mt-2 flex items-center gap-2">
+            {lastSavedAt && <span className="text-xs text-slate-500">Saved at {lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
+            {trackingNoteSaving && <span className="text-xs text-[#2563EB]">Saving…</span>}
+          </div>
+          <form onSubmit={handleAddNote} className="mt-4 flex gap-2">
             <input
               type="text"
               value={noteContent}
               onChange={(e) => setNoteContent(e.target.value)}
-              placeholder="Add a note…"
-              className="flex-1 rounded border border-gray-300 px-3 py-2"
+              placeholder="Quick add note…"
+              className="flex-1 rounded-[8px] border border-slate-200 px-3 py-2 text-sm focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 focus:outline-none"
             />
-            <button type="submit" disabled={submittingNote || !noteContent.trim()} className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50">
+            <button type="submit" disabled={submittingNote || !noteContent.trim()} className="rounded-[8px] bg-[#2563EB] px-4 py-2 text-sm text-white hover:bg-[#1d4ed8] disabled:opacity-50">
               Add
             </button>
           </form>
-          <ul className="space-y-2 text-sm">
-            {lead.notes.length === 0 && <li className="text-gray-500">No notes yet</li>}
-            {lead.notes.map((n) => (
-              <li key={n.id} className="rounded bg-gray-50 p-2">
-                <span className="text-gray-600">{n.content}</span>
-                <span className="ml-2 text-gray-400">{n.created_at}</span>
-              </li>
-            ))}
-          </ul>
         </div>
         <PrecallBriefModal
           open={precallBriefOpen}
