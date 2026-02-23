@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useMemo } from 'react'
 
 export interface HeaderExportAction {
   label: string
@@ -14,7 +14,10 @@ const HeaderActionsContext = createContext<HeaderActionsContextValue | null>(nul
 
 export function HeaderActionsProvider({ children }: { children: React.ReactNode }) {
   const [exportAction, setExportAction] = useState<HeaderExportAction | null>(null)
-  const value: HeaderActionsContextValue = { exportAction, setExportAction }
+  const value = useMemo(
+    () => ({ exportAction, setExportAction }),
+    [exportAction]
+  )
   return (
     <HeaderActionsContext.Provider value={value}>
       {children}

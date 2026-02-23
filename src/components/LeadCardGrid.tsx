@@ -65,7 +65,7 @@ export function LeadCardGrid({ leads, showSort = true, marketLabel, selectedIds,
   }, [leads, sortBy, order])
 
   return (
-    <div className="space-y-[var(--space-4)]">
+    <div className="space-y-[var(--space-3)]">
       {showSort && (
         <div className="flex flex-wrap items-center gap-[var(--space-2)]">
           <label className="text-sm text-slate-600">Sort by</label>
@@ -90,7 +90,7 @@ export function LeadCardGrid({ leads, showSort = true, marketLabel, selectedIds,
           </select>
         </div>
       )}
-      <div className="grid grid-cols-1 gap-[var(--space-4)] sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-[var(--space-3)] sm:grid-cols-2 xl:grid-cols-3">
         {sortedLeads.map((lead, i) => (
           <LeadCard
             key={lead.place_id || `lead-${i}`}

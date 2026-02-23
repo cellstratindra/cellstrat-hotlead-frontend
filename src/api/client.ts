@@ -511,13 +511,24 @@ export async function getGmailAuthUrl(userId: string): Promise<{ url: string }> 
 }
 
 export async function getGmailStatus(userId: string): Promise<GmailStatusResponse> {
+  if (!userId?.trim()) return { connected: false, message: 'No user' }
   try {
     const res = await fetch(`${API_BASE}/api/gmail/status?user_id=${encodeURIComponent(userId)}`)
-    if (!res.ok) throw new Error('Failed to get Gmail status')
-    return res.json() as Promise<GmailStatusResponse>
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      return { connected: false, message: typeof data?.detail === 'string' ? data.detail : 'Gmail status unavailable' }
+    }
+    return {
+      connected: Boolean(data?.connected),
+      email: data?.email ?? null,
+      picture: data?.picture ?? null,
+      message: data?.message ?? undefined,
+    }
   } catch (e) {
-    if (e instanceof Error && e.message.startsWith('Cannot reach backend')) throw e
-    wrapNetworkError(e, 'Gmail status')
+    if (e instanceof Error && e.message.startsWith('Cannot reach backend')) {
+      return { connected: false, message: e.message }
+    }
+    return { connected: false, message: e instanceof Error ? e.message : 'Request failed' }
   }
 }
 
@@ -625,6 +636,10 @@ export interface SearchParams {
   city: string
   specialty: string
   region?: string
+  /** Optional: search by clinic/business name; bypasses underperformer filter */
+  place_query?: string
+  /** Optional: natural-language search; parsed by backend to structured params */
+  nl_query?: string
   sort_by?: string
   order?: string
   min_rating?: number
@@ -653,6 +668,8 @@ export async function searchLeads(params: SearchParams): Promise<SearchResponse>
     city: params.city.trim().toLowerCase(),
     specialty: params.specialty.trim().toLowerCase(),
     region: params.region?.trim() ? params.region.trim().toLowerCase() : null,
+    place_query: params.place_query?.trim() || null,
+    nl_query: params.nl_query?.trim() || null,
     sort_by: params.sort_by || null,
     order: params.order || null,
     min_rating: params.min_rating ?? null,

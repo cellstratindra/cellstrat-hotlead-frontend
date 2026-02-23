@@ -1,6 +1,6 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Zap, User, Phone, Mail, FileText } from 'lucide-react'
+import { Zap, User, Phone, Mail, FileText, MoreHorizontal } from 'lucide-react'
 import type { HotLead } from '../types/leads'
 import { ReviewsModal } from './ReviewsModal'
 import { TeamDispatchPopover } from './TeamDispatchPopover'
@@ -58,9 +58,11 @@ export function LeadCard({
 }: LeadCardProps) {
   const [reviewsOpen, setReviewsOpen] = useState(false)
   const [dispatchOpen, setDispatchOpen] = useState(false)
+  const [cardMenuOpen, setCardMenuOpen] = useState(false)
   const [aiExplanation, setAiExplanation] = useState<string | null>(null)
   const [explainLoading, setExplainLoading] = useState(false)
   const assignAnchorRef = useRef<HTMLButtonElement>(null)
+  const cardMenuRef = useRef<HTMLDivElement>(null)
   const snippet = reviewSnippet(lead)
   const score = lead.recommendation_score != null ? Math.round(lead.recommendation_score) : null
   const tier = lead.tier ?? null
@@ -93,15 +95,29 @@ export function LeadCard({
     }
   }
 
+  useEffect(() => {
+    if (!cardMenuOpen) return
+    const onKeyDown = (e: KeyboardEvent) => e.key === 'Escape' && setCardMenuOpen(false)
+    const onClick = (e: MouseEvent) => {
+      if (cardMenuRef.current && !cardMenuRef.current.contains(e.target as Node)) setCardMenuOpen(false)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    document.addEventListener('click', onClick, true)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      document.removeEventListener('click', onClick, true)
+    }
+  }, [cardMenuOpen])
+
   return (
     <>
       <article
-        className="rounded-[var(--radius-card)] border-default bg-white/90 backdrop-blur-sm p-[var(--space-5)] shadow-[var(--shadow-card)] transition-shadow hover:shadow-[var(--shadow-dropdown)]"
+        className="rounded-[var(--radius-card)] border border-slate-200/80 bg-white shadow-[var(--shadow-card)] transition-shadow hover:shadow-[var(--shadow-dropdown)] p-[var(--space-3)]"
         aria-label={`Lead: ${lead.name}`}
       >
-        <div className="flex flex-col gap-[var(--space-4)]">
-          {/* Header: clinic name (left) + Tier & Score chips (right) */}
-          <div className="flex items-start justify-between gap-[var(--space-3)]">
+        <div className="flex flex-col gap-[var(--space-2)]">
+          {/* Top row: clinic name (left) + score badge (right) */}
+          <div className="flex items-start justify-between gap-[var(--space-2)]">
             {showCheckbox && onToggle && (
               <input
                 type="checkbox"
@@ -111,121 +127,60 @@ export function LeadCard({
                 aria-label={`Select ${lead.name}`}
               />
             )}
-            <h3 className="text-lg font-semibold leading-tight text-slate-900 flex-1 min-w-0">
+            <h3 className="text-[14px] font-semibold leading-tight text-slate-900 flex-1 min-w-0 line-clamp-2">
               {lead.name ?? '—'}
             </h3>
-            <div className="flex shrink-0 items-center gap-[var(--space-2)] flex-wrap justify-end">
+            <div className="flex shrink-0 items-center gap-[var(--space-1)] flex-wrap justify-end">
               {score != null && (
                 <span
-                  className="text-xl font-bold tabular-nums text-[var(--color-primary)] cursor-help rounded-[var(--radius-button)] bg-[var(--color-primary)]/15 px-[var(--space-2)] py-[var(--space-1)] border border-[var(--color-primary)]/30"
-                  title="Hot score (0–100): based on rating, review volume, phone availability, and enrichment. Higher = stronger fit for outreach."
+                  className="text-sm font-bold tabular-nums text-[var(--color-primary)] cursor-help rounded-md bg-[var(--color-primary)]/15 px-[var(--space-2)] py-0.5 border border-[var(--color-primary)]/30"
+                  title="Hot score (0–100)"
                   aria-label={`Hot score ${score}`}
                 >
                   {score}
                 </span>
               )}
               {tier && (
-                <span className="rounded-[var(--radius-sm)] border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm font-semibold text-slate-800">
+                <span className="rounded border border-slate-200 bg-slate-50 px-[var(--space-1)] py-0.5 text-xs font-medium text-slate-700">
                   {tier}
                 </span>
               )}
               {showWorkflowBadge && (
-                <span className="inline-flex items-center gap-1 rounded-[var(--radius-button)] bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700" title="In nurture sequence">
+                <span className="inline-flex items-center gap-0.5 rounded bg-emerald-50 px-[var(--space-1)] py-0.5 text-xs font-medium text-emerald-700" title="In nurture sequence">
                   <Zap className="h-3 w-3" aria-hidden />
                   Nurture
                 </span>
               )}
             </div>
           </div>
-          {/* Lead Source pill when marketLabel is present */}
-          {marketLabel && (
-            <span className="inline-flex w-fit rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600" aria-label={`Lead source: ${marketLabel}`}>
-              {marketLabel}
-            </span>
-          )}
-          {/* Secondary line: phone (mobile-friendly) */}
-          {lead.phone && (
-            <p className="text-sm text-slate-500 -mt-1">
-              {lead.phone}
-            </p>
-          )}
-          {score != null && (
-            <div className="flex items-center gap-[var(--space-2)] flex-wrap">
-              <button
-                type="button"
-                onClick={handleExplainScore}
-                disabled={explainLoading}
-                className="text-xs text-slate-500 hover:text-[var(--color-primary)] disabled:opacity-50"
-              >
-                {explainLoading ? '…' : 'Explain with AI'}
-              </button>
-              {aiExplanation && (
-                <span className="text-xs text-slate-600">{aiExplanation}</span>
-              )}
-            </div>
-          )}
-
-          {(lead.match_band || lead.relevance_score != null) && (
-            <p className="text-xs font-medium text-slate-600">
-              {matchBandLabel(lead.match_band)}
-              {lead.relevance_score != null && (
-                <span className="ml-[var(--space-1)]" title={`Relevance score: ${lead.relevance_score}`}>
-                  ({Math.round(lead.relevance_score)})
-                </span>
-              )}
-            </p>
-          )}
-          {lead.percentile_in_market != null && lead.total_in_market != null && (
-            <p className="text-xs font-medium text-[var(--color-primary)]">
-              Top {Math.round(100 - lead.percentile_in_market)}%{marketLabel ? ` of ${marketLabel}` : ''} · Rank {lead.rank_in_market ?? '—'} of {lead.total_in_market}
-            </p>
-          )}
-          <dl className="grid grid-cols-2 gap-x-[var(--space-4)] gap-y-[var(--space-2)] text-sm">
+          {/* Middle: metadata (specialty/source + phone) in one compact line */}
+          <div className="text-xs text-slate-500 min-h-0">
+            {marketLabel && <span>{marketLabel}</span>}
+            {marketLabel && lead.phone && <span className="mx-1">·</span>}
+            {lead.phone && <span>{lead.phone}</span>}
+            {!marketLabel && !lead.phone && <span>&nbsp;</span>}
+          </div>
+          {/* Optional compact stats row */}
+          <dl className="grid grid-cols-4 gap-x-[var(--space-2)] gap-y-0 text-xs">
             <div>
-              <dt className="text-slate-500">Rating</dt>
-              <dd className="font-medium text-slate-900">{(Number(lead.rating) ?? 0).toFixed(1)}</dd>
+              <dt className="text-slate-400">Rating</dt>
+              <dd className="font-medium text-slate-700">{(Number(lead.rating) ?? 0).toFixed(1)}</dd>
             </div>
             <div>
-              <dt className="text-slate-500">Reviews</dt>
-              <dd className="font-medium text-slate-900">{lead.review_count ?? 0}</dd>
+              <dt className="text-slate-400">Reviews</dt>
+              <dd className="font-medium text-slate-700">{lead.review_count ?? 0}</dd>
             </div>
             <div>
-              <dt className="text-slate-500">Reach</dt>
-              <dd className="font-medium text-slate-900">
-                {lead.estimated_monthly_patients != null
-                  ? `Est. ${lead.estimated_monthly_patients.toLocaleString()}/mo`
-                  : (lead.reach_band ?? '—')}
+              <dt className="text-slate-400">Reach</dt>
+              <dd className="font-medium text-slate-700 truncate" title={lead.reach_band ?? ''}>
+                {lead.estimated_monthly_patients != null ? `${(lead.estimated_monthly_patients / 1000).toFixed(0)}k/mo` : (lead.reach_band ?? '—')}
               </dd>
             </div>
             <div>
-              <dt className="text-slate-500">Budget</dt>
-              <dd className="font-medium text-slate-900">{lead.estimated_budget_tier ?? '—'}</dd>
+              <dt className="text-slate-400">Budget</dt>
+              <dd className="font-medium text-slate-700 truncate">{lead.estimated_budget_tier ?? '—'}</dd>
             </div>
           </dl>
-
-          {lead.phone && (
-            <p className="text-sm text-slate-600">
-              <span className="text-slate-500">Phone </span>
-              {lead.phone}
-            </p>
-          )}
-
-          {(lead.contact_email || lead.director_name) && (
-            <div className="text-sm text-slate-600 space-y-[var(--space-1)]">
-              {lead.director_name && (
-                <p><span className="text-slate-500">Director </span>{lead.director_name}</p>
-              )}
-              {lead.contact_email && (
-                <p><span className="text-slate-500">Email </span>{lead.contact_email}</p>
-              )}
-            </div>
-          )}
-
-          {snippet && (
-            <p className="line-clamp-2 text-sm text-slate-600" title={snippet}>
-              {snippet}
-            </p>
-          )}
 
           {showAssignedTo && (
             <div className="flex items-center gap-[var(--space-2)]">
@@ -234,17 +189,17 @@ export function LeadCard({
                 ref={assignAnchorRef}
                 type="button"
                 onClick={() => setDispatchOpen((o) => !o)}
-                className="flex items-center gap-[var(--space-2)] rounded-[var(--radius-button)] border border-slate-200 bg-slate-50 px-[var(--space-2)] py-[var(--space-1)] text-sm hover:bg-slate-100"
+                className="flex items-center gap-1 rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs hover:bg-slate-100"
                 aria-label="Assign or change assignment"
               >
                 {assignedTo ? (
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-primary)]/15 text-xs font-medium text-[var(--color-primary)]">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-primary)]/15 text-xs font-medium text-[var(--color-primary)]">
                     {assignedTo.slice(0, 2).toUpperCase()}
                   </span>
                 ) : (
-                  <User className="h-4 w-4 text-slate-400" />
+                  <User className="h-3.5 w-3.5 text-slate-400" />
                 )}
-                <span className="text-slate-700">{assignedTo ? assignedTo.slice(0, 12) : 'Unassigned'}</span>
+                <span className="text-slate-700">{assignedTo ? assignedTo.slice(0, 10) : 'Unassigned'}</span>
               </button>
               <TeamDispatchPopover
                 open={dispatchOpen}
@@ -260,48 +215,74 @@ export function LeadCard({
             </div>
           )}
 
-          {/* Footer: quick actions (Call, Email, Note) + View reviews */}
-          <div className="mt-auto pt-[var(--space-2)] flex flex-wrap items-center gap-[var(--space-2)] border-t border-slate-100">
-            <div className="flex items-center gap-[var(--space-1)]">
-              {lead.phone && (
-                <a
-                  href={`tel:${lead.phone.replace(/\D/g, '')}`}
-                  className="touch-target flex items-center justify-center rounded-[var(--radius-button)] p-[var(--space-2)] text-slate-600 hover:bg-slate-100 hover:text-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2"
-                  style={{ minHeight: 'var(--touch-min)', minWidth: 'var(--touch-min)' }}
-                  aria-label="Call"
-                >
-                  <Phone className="h-5 w-5" aria-hidden />
-                </a>
-              )}
-              {lead.contact_email && (
-                <a
-                  href={`mailto:${lead.contact_email}`}
-                  className="touch-target flex items-center justify-center rounded-[var(--radius-button)] p-[var(--space-2)] text-slate-600 hover:bg-slate-100 hover:text-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2"
-                  style={{ minHeight: 'var(--touch-min)', minWidth: 'var(--touch-min)' }}
-                  aria-label="Email"
-                >
-                  <Mail className="h-5 w-5" aria-hidden />
-                </a>
-              )}
-              {leadId != null && (
-                <Link
-                  to={`/leads/${leadId}`}
-                  className="touch-target flex items-center justify-center rounded-[var(--radius-button)] p-[var(--space-2)] text-slate-600 hover:bg-slate-100 hover:text-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2"
-                  style={{ minHeight: 'var(--touch-min)', minWidth: 'var(--touch-min)' }}
-                  aria-label="Note / View detail"
-                >
-                  <FileText className="h-5 w-5" aria-hidden />
-                </Link>
-              )}
-            </div>
+          {/* Bottom row: primary action + ... menu */}
+          <div className="mt-auto pt-[var(--space-2)] flex items-center justify-between gap-2 border-t border-slate-100">
             <button
               type="button"
               onClick={() => setReviewsOpen(true)}
-              className="rounded-[var(--radius-button)] border border-[var(--color-primary)] bg-white px-[var(--space-3)] py-[var(--space-2)] text-sm font-medium text-[var(--color-primary)] shadow-sm hover:bg-[var(--color-primary)]/5 touch-target"
-              style={{ minHeight: 'var(--touch-min)' }}
+              className="rounded-md border border-[var(--color-primary)] bg-white px-3 py-1.5 text-xs font-medium text-[var(--color-primary)] shadow-sm hover:bg-[var(--color-primary)]/5"
             >
               View reviews
             </button>
+            <div className="relative" ref={cardMenuRef}>
+              <button
+                type="button"
+                onClick={() => setCardMenuOpen((o) => !o)}
+                className="flex h-8 w-8 items-center justify-center rounded text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                aria-label="More actions"
+                aria-expanded={cardMenuOpen}
+              >
+                <MoreHorizontal className="h-4 w-4" aria-hidden />
+              </button>
+              {cardMenuOpen && (
+                <div
+                  className="absolute right-0 top-full z-50 mt-1 min-w-[140px] rounded-md border border-slate-200 bg-white py-1 shadow-lg"
+                  role="menu"
+                >
+                  {lead.phone && (
+                    <a
+                      href={`tel:${lead.phone.replace(/\D/g, '')}`}
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
+                      role="menuitem"
+                      onClick={() => setCardMenuOpen(false)}
+                    >
+                      <Phone className="h-3.5 w-3.5" /> Call
+                    </a>
+                  )}
+                  {lead.contact_email && (
+                    <a
+                      href={`mailto:${lead.contact_email}`}
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
+                      role="menuitem"
+                      onClick={() => setCardMenuOpen(false)}
+                    >
+                      <Mail className="h-3.5 w-3.5" /> Email
+                    </a>
+                  )}
+                  {leadId != null && (
+                    <Link
+                      to={`/leads/${leadId}`}
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
+                      role="menuitem"
+                      onClick={() => setCardMenuOpen(false)}
+                    >
+                      <FileText className="h-3.5 w-3.5" /> View detail
+                    </Link>
+                  )}
+                  {score != null && (
+                    <button
+                      type="button"
+                      onClick={() => { handleExplainScore(); setCardMenuOpen(false); }}
+                      disabled={explainLoading}
+                      className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                      role="menuitem"
+                    >
+                      {explainLoading ? '…' : 'Explain with AI'}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </article>

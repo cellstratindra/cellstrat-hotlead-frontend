@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react'
+import { memo, useRef, useState, useEffect } from 'react'
 import { Check, X } from 'lucide-react'
 import { SavedLeadCard } from './SavedLeadCard'
 import type { SavedLead } from '../api/client'
@@ -9,17 +9,20 @@ const HINT_KEY = 'hotleads_swipe_hint_seen'
 interface SwipeableLeadCardProps {
   lead: SavedLead
   isYou: boolean
+  /** Resolved display name of the assignee (or null if unassigned) */
+  assignedToLabel: string | null
   selected: boolean
-  onToggle: (checked: boolean) => void
-  onSwipeRight: () => void
-  onSwipeLeft: () => void
+  onToggle: (leadId: number, checked: boolean) => void
+  onSwipeRight: (leadId: number) => void
+  onSwipeLeft: (leadId: number) => void
   /** When true, show a one-time "Swipe right to qualify" hint (e.g. first card in list) */
   showSwipeHint?: boolean
 }
 
-export function SwipeableLeadCard({
+function SwipeableLeadCardInner({
   lead,
   isYou,
+  assignedToLabel,
   selected,
   onToggle,
   onSwipeRight,
@@ -57,10 +60,10 @@ export function SwipeableLeadCard({
 
   function handleTouchEnd() {
     if (action === 'right') {
-      onSwipeRight()
+      onSwipeRight(lead.id)
       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10)
     } else if (action === 'left') {
-      onSwipeLeft()
+      onSwipeLeft(lead.id)
       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10)
     }
     setOffset(0)
@@ -76,14 +79,14 @@ export function SwipeableLeadCard({
           aria-hidden
         >
           <Check className="h-8 w-8" />
-          <span className="ml-2 text-sm font-medium">Qualified</span>
+          <span className="ml-[var(--space-2)] text-sm font-medium">Qualified</span>
         </div>
         <div
           className="flex-1 flex items-center justify-center bg-red-500/90 text-white"
           aria-hidden
         >
           <X className="h-8 w-8" />
-          <span className="ml-2 text-sm font-medium">Reject</span>
+          <span className="ml-[var(--space-2)] text-sm font-medium">Reject</span>
         </div>
       </div>
       <div
@@ -96,24 +99,26 @@ export function SwipeableLeadCard({
         <div className="relative">
           {hintVisible && (
             <div
-              className="absolute top-0 right-0 z-10 rounded-[var(--radius-sm)] bg-[var(--color-primary)]/90 text-white px-2 py-1 text-xs font-medium shadow-[var(--shadow-soft)] flex items-center gap-1"
+              className="absolute top-0 right-0 z-10 rounded-[var(--radius-sm)] bg-[var(--color-primary)]/90 text-white px-[var(--space-2)] py-[var(--space-1)] text-xs font-medium shadow-[var(--shadow-soft)] flex items-center gap-[var(--space-1)]"
               role="status"
               aria-live="polite"
             >
-              <span>Swipe right → qualify</span>
+              <span>Swipe right → qualify, left → new</span>
               <button
                 type="button"
                 onClick={dismissHint}
-                className="rounded p-0.5 hover:bg-white/20 focus:ring-2 focus:ring-white focus:ring-offset-1 focus:ring-offset-[var(--color-primary)]"
+                className="rounded p-[var(--space-1)] hover:bg-white/20 focus:ring-2 focus:ring-white focus:ring-offset-1 focus:ring-offset-[var(--color-primary)]"
                 aria-label="Dismiss hint"
               >
                 <X className="h-3 w-3" />
               </button>
             </div>
           )}
-          <SavedLeadCard lead={lead} isYou={isYou} selected={selected} onToggle={onToggle} />
+          <SavedLeadCard lead={lead} isYou={isYou} assignedToLabel={assignedToLabel} selected={selected} onToggle={onToggle} />
         </div>
       </div>
     </div>
   )
 }
+
+export const SwipeableLeadCard = memo(SwipeableLeadCardInner)

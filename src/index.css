@@ -17,6 +17,7 @@
   --color-coral-muted: #fed7aa;
   --color-emerald: #10b981;
   --color-emerald-muted: #a7f3d0;
+  --color-surface: #ffffff;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   /* 8px grid spacing */
   --space-1: 4px;
@@ -70,6 +71,7 @@ body {
     --color-canvas: #0f172a;
     --color-navy: #f1f5f9;
     --color-bg-base: #020617;
+    --color-surface: #1e293b;
   }
   .border-default {
     border-color: rgb(51 65 85);

@@ -50,12 +50,14 @@ function DraggableLeadCard({
   lead,
   assignableUsers,
   currentUserId,
+  assigneeNameById,
   onAssign,
   onUnassign,
 }: {
   lead: SavedLead
   assignableUsers: AssignableUser[]
   currentUserId: string | null
+  assigneeNameById: Map<string, string>
   onAssign: (leadId: number, userId: string) => Promise<void>
   onUnassign: (leadId: number) => Promise<void>
 }) {
@@ -66,6 +68,7 @@ function DraggableLeadCard({
     data: { lead },
   })
   const assignedTo = lead.assigned_to ?? null
+  const assigneeLabel = assignedTo ? (assigneeNameById.get(assignedTo) ?? assignedTo) : null
   const showAssign = assignableUsers.length > 0
 
   return (
@@ -90,12 +93,12 @@ function DraggableLeadCard({
           >
             {assignedTo ? (
               <span className="h-5 w-5 rounded-full bg-[#2563EB]/15 flex items-center justify-center text-[10px] font-medium text-[#2563EB]">
-                {assignedTo.slice(0, 2).toUpperCase()}
+                {(assigneeLabel ?? assignedTo).slice(0, 2).toUpperCase()}
               </span>
             ) : (
               <User className="h-3.5 w-3.5 text-slate-400" />
             )}
-            <span className="text-slate-600">{assignedTo ? assignedTo.slice(0, 8) : 'Assign'}</span>
+            <span className="text-slate-600 truncate max-w-[6rem]">{assigneeLabel ?? (assignedTo ? assignedTo.slice(0, 8) : 'Assign')}</span>
           </button>
           <TeamDispatchPopover
             open={dispatchOpen}
@@ -119,6 +122,7 @@ function DroppableColumn({
   leads,
   assignableUsers,
   currentUserId,
+  assigneeNameById,
   onAssign,
   onUnassign,
 }: {
@@ -126,6 +130,7 @@ function DroppableColumn({
   leads: SavedLead[]
   assignableUsers: AssignableUser[]
   currentUserId: string | null
+  assigneeNameById: Map<string, string>
   onAssign: (leadId: number, userId: string) => Promise<void>
   onUnassign: (leadId: number) => Promise<void>
 }) {
@@ -148,6 +153,7 @@ function DroppableColumn({
             lead={lead}
             assignableUsers={assignableUsers}
             currentUserId={currentUserId}
+            assigneeNameById={assigneeNameById}
             onAssign={onAssign}
             onUnassign={onUnassign}
           />
@@ -162,6 +168,7 @@ interface PipelineBoardProps {
   onLeadsChange: (updated: SavedLead[]) => void
   assignableUsers?: AssignableUser[]
   currentUserId?: string | null
+  assigneeNameById?: Map<string, string>
   onAssign?: (leadId: number, userId: string) => Promise<void>
   onUnassign?: (leadId: number) => Promise<void>
 }
@@ -171,6 +178,7 @@ export function PipelineBoard({
   onLeadsChange,
   assignableUsers = [],
   currentUserId = null,
+  assigneeNameById = new Map(),
   onAssign = async () => {},
   onUnassign = async () => {},
 }: PipelineBoardProps) {
@@ -232,6 +240,7 @@ export function PipelineBoard({
             leads={leadsByStage[stage] ?? []}
             assignableUsers={assignableUsers}
             currentUserId={currentUserId}
+            assigneeNameById={assigneeNameById}
             onAssign={onAssign}
             onUnassign={onUnassign}
           />

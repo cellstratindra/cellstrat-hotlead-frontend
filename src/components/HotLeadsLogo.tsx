@@ -48,7 +48,7 @@ export function HotLeadsLogo({ iconOnly = false, size = 'md', className = '' }: 
 
   return (
     <span
-      className={`inline-flex items-center gap-2 ${className}`}
+      className={`inline-flex items-center gap-[var(--space-2)] ${className}`}
       aria-label="Hot Leads by Cellstrat"
     >
       {mark}

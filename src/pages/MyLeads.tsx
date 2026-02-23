@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
 import {
@@ -23,6 +23,8 @@ type LeadScope = 'my' | 'org'
 
 export function MyLeads() {
   const { user } = useUser()
+  const u = user as { fullName?: string | null; firstName?: string | null; primaryEmailAddress?: { emailAddress?: string } | null } | null
+  const displayName = (u?.fullName ?? u?.firstName ?? u?.primaryEmailAddress?.emailAddress ?? user?.id)?.trim() || 'You'
   const [leads, setLeads] = useState<SavedLead[]>([])
   const [loading, setLoading] = useState(true)
   const [stageFilter, setStageFilter] = useState<string>('')
@@ -33,30 +35,43 @@ export function MyLeads() {
   const [assignableUsers, setAssignableUsers] = useState<AssignableUser[]>([])
   const headerActions = useHeaderActions()
 
-  useEffect(() => {
-    getAssignableUsers().then(setAssignableUsers).catch(() => setAssignableUsers([]))
-  }, [])
+  const assigneeNameById = useMemo(() => {
+    const map = new Map<string, string>()
+    assignableUsers.forEach((au) => {
+      map.set(au.id, (au.name ?? au.email ?? au.id).trim() || au.id)
+    })
+    if (user?.id) map.set(user.id, displayName)
+    return map
+  }, [assignableUsers, user?.id, displayName])
 
   useEffect(() => {
+    const t = setTimeout(() => {
+      getAssignableUsers().then(setAssignableUsers).catch(() => setAssignableUsers([]))
+    }, 0)
+    return () => clearTimeout(t)
+  }, [])
+
+  const handleExportCrm = useCallback(() => {
+    const url = exportForCrmUrl(stageFilter ? { stage: stageFilter } : undefined)
+    fetch(url)
+      .then((r) => r.text())
+      .then((csv) => {
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(blob)
+        a.download = 'hot-leads-crm-export.csv'
+        a.click()
+        URL.revokeObjectURL(a.href)
+      })
+  }, [stageFilter])
+
+  // Register header export on mount; update when handleExportCrm changes. Do not depend on
+  // headerActions object — the context value is recreated each render and would cause an infinite loop.
+  useEffect(() => {
     if (!headerActions) return
-    headerActions.setExportAction({
-      label: 'Export for CRM',
-      onClick: () => {
-        const url = exportForCrmUrl(stageFilter ? { stage: stageFilter } : undefined)
-        fetch(url)
-          .then((r) => r.text())
-          .then((csv) => {
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
-            const a = document.createElement('a')
-            a.href = URL.createObjectURL(blob)
-            a.download = 'hot-leads-crm-export.csv'
-            a.click()
-            URL.revokeObjectURL(a.href)
-          })
-      },
-    })
+    headerActions.setExportAction({ label: 'Export for CRM', onClick: handleExportCrm })
     return () => headerActions.setExportAction(null)
-  }, [headerActions, stageFilter])
+  }, [handleExportCrm])
 
   const fetchLeads = useCallback(() => {
     const params: Parameters<typeof getLeads>[0] =
@@ -91,6 +106,14 @@ export function MyLeads() {
 
   const selectedLeads = leads.filter((l) => selectedIds.has(l.id))
 
+  const handleSwipeRight = useCallback((leadId: number) => {
+    updateLeadStage(leadId, 'qualified').then(() => fetchLeads())
+  }, [fetchLeads])
+
+  const handleSwipeLeft = useCallback((leadId: number) => {
+    updateLeadStage(leadId, 'new').then(() => fetchLeads())
+  }, [fetchLeads])
+
   async function handleSaveDetails(updates: LeadDetailsUpdates) {
     await bulkUpdateLeads({
       lead_ids: [...selectedIds],
@@ -103,13 +126,17 @@ export function MyLeads() {
     fetchLeads()
   }
 
-  function toggleSelect(id: number, checked: boolean) {
+  const handleToggleSelect = useCallback((leadId: number, checked: boolean) => {
     setSelectedIds((prev) => {
       const next = new Set(prev)
-      if (checked) next.add(id)
-      else next.delete(id)
+      if (checked) next.add(leadId)
+      else next.delete(leadId)
       return next
     })
+  }, [])
+
+  function toggleSelect(id: number, checked: boolean) {
+    handleToggleSelect(id, checked)
   }
 
   return (
@@ -126,7 +153,7 @@ export function MyLeads() {
                 key={s || 'all'}
                 type="button"
                 onClick={() => setStageFilter(s)}
-                className={`touch-target shrink-0 px-[var(--space-4)] py-2.5 rounded-[var(--radius-button)] text-sm font-medium whitespace-nowrap focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2 ${stageFilter === s ? 'bg-[var(--color-primary)] text-white' : 'bg-slate-100 text-slate-700'}`}
+                className={`touch-target shrink-0 px-[var(--space-4)] py-[var(--space-2)] rounded-[var(--radius-button)] text-sm font-medium whitespace-nowrap focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2 ${stageFilter === s ? 'bg-[var(--color-primary)] text-white' : 'bg-slate-100 text-slate-700'}`}
                 style={{ minHeight: 'var(--touch-min)' }}
               >
                 {s ? s.replace(/_/g, ' ') : 'All'}
@@ -134,85 +161,68 @@ export function MyLeads() {
             ))}
           </div>
         </div>
-        <div className="mb-[var(--space-4)] flex flex-wrap items-center gap-[var(--space-4)]">
-          {/* Desktop: List / Pipeline toggle */}
-          <div className="hidden md:flex rounded-[var(--radius-button)] border border-slate-200 p-[var(--space-1)] bg-slate-100">
-            <button
-              type="button"
-              onClick={() => setViewMode('list')}
-              className={`px-[var(--space-3)] py-[var(--space-2)] text-sm font-medium rounded-[var(--radius-sm)] ${viewMode === 'list' ? 'bg-white text-slate-900 shadow' : 'text-slate-600 hover:text-slate-900'}`}
-            >
-              List
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('pipeline')}
-              className={`px-[var(--space-3)] py-[var(--space-2)] text-sm font-medium rounded-[var(--radius-sm)] ${viewMode === 'pipeline' ? 'bg-white text-slate-900 shadow' : 'text-slate-600 hover:text-slate-900'}`}
-            >
-              Pipeline
-            </button>
-          </div>
-          <div className="flex items-center gap-[var(--space-2)]">
-            <span className="text-sm text-slate-600">Lead view:</span>
-            <div className="flex rounded-[var(--radius-button)] border border-slate-200 p-[var(--space-1)] bg-slate-100">
+        <div className="mb-[var(--space-4)] rounded-[var(--radius-card)] border border-slate-200 bg-white px-[var(--space-4)] py-[var(--space-3)] shadow-[var(--shadow-card)]">
+          <div className="flex flex-wrap items-center gap-[var(--space-4)]">
+            {/* Desktop: List / Pipeline toggle */}
+            <div className="hidden md:flex rounded-[var(--radius-button)] border border-slate-200 p-[var(--space-1)] bg-slate-100">
               <button
                 type="button"
-                onClick={() => setLeadScope('my')}
-                className={`px-[var(--space-3)] py-[var(--space-2)] text-sm font-medium rounded-[var(--radius-sm)] touch-target ${leadScope === 'my' ? 'bg-white text-slate-900 shadow' : 'text-slate-600 hover:text-slate-900'}`}
+                onClick={() => setViewMode('list')}
+                className={`px-[var(--space-3)] py-[var(--space-2)] text-sm font-medium rounded-[var(--radius-sm)] ${viewMode === 'list' ? 'bg-white text-slate-900 shadow' : 'text-slate-600 hover:text-slate-900'}`}
               >
-                My Leads
+                List
               </button>
               <button
                 type="button"
-                onClick={() => setLeadScope('org')}
-                className={`px-[var(--space-3)] py-[var(--space-2)] text-sm font-medium rounded-[var(--radius-sm)] touch-target ${leadScope === 'org' ? 'bg-white text-slate-900 shadow' : 'text-slate-600 hover:text-slate-900'}`}
+                onClick={() => setViewMode('pipeline')}
+                className={`px-[var(--space-3)] py-[var(--space-2)] text-sm font-medium rounded-[var(--radius-sm)] ${viewMode === 'pipeline' ? 'bg-white text-slate-900 shadow' : 'text-slate-600 hover:text-slate-900'}`}
               >
-                Organization
+                Pipeline
               </button>
             </div>
-          </div>
-          {viewMode === 'list' && (
-            <div className="hidden md:flex items-center gap-[var(--space-2)]">
-              <label className="text-sm text-slate-600">Stage:</label>
-              <select
-                value={stageFilter}
-                onChange={(e) => setStageFilter(e.target.value)}
-                className="rounded-[var(--radius-button)] border border-slate-300 px-[var(--space-3)] py-[var(--space-2)] text-sm"
-              >
-                <option value="">All</option>
-                {STAGES.map((s) => (
-                  <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
-                ))}
-              </select>
+            <div className="flex items-center gap-[var(--space-2)]">
+              <span className="text-sm font-medium text-slate-800">Lead view:</span>
+              <div className="flex rounded-[var(--radius-button)] border border-slate-200 p-[var(--space-1)] bg-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setLeadScope('my')}
+                  className={`px-[var(--space-3)] py-[var(--space-2)] text-sm font-medium rounded-[var(--radius-sm)] touch-target ${leadScope === 'my' ? 'bg-white text-slate-900 shadow' : 'text-slate-600 hover:text-slate-900'}`}
+                >
+                  My Leads
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLeadScope('org')}
+                  className={`px-[var(--space-3)] py-[var(--space-2)] text-sm font-medium rounded-[var(--radius-sm)] touch-target ${leadScope === 'org' ? 'bg-white text-slate-900 shadow' : 'text-slate-600 hover:text-slate-900'}`}
+                >
+                  Organization
+                </button>
+              </div>
             </div>
-          )}
-          <button
-            type="button"
-            onClick={() => setDetailsDrawerOpen(true)}
-            disabled={selectedIds.size === 0}
-            className="rounded-[var(--radius-button)] bg-slate-600 px-[var(--space-4)] py-[var(--space-2)] text-white shadow-[var(--shadow-button)] hover:bg-slate-700 disabled:opacity-50 focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2"
-          >
-            Add details {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              const url = exportForCrmUrl(stageFilter ? { stage: stageFilter } : undefined)
-              fetch(url)
-                .then((r) => r.text())
-                .then((csv) => {
-                  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
-                  const a = document.createElement('a')
-                  a.href = URL.createObjectURL(blob)
-                  a.download = 'hot-leads-crm-export.csv'
-                  a.click()
-                  URL.revokeObjectURL(a.href)
-                })
-            }}
-            className="rounded-[var(--radius-button)] bg-amber-600 px-[var(--space-4)] py-[var(--space-2)] text-white shadow-[var(--shadow-button)] hover:bg-amber-700 focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2"
-          >
-            Export for CRM
-          </button>
+            {viewMode === 'list' && (
+              <div className="hidden md:flex items-center gap-[var(--space-2)]">
+                <label className="text-sm font-medium text-slate-800">Stage:</label>
+                <select
+                  value={stageFilter}
+                  onChange={(e) => setStageFilter(e.target.value)}
+                  className="rounded-[var(--radius-button)] border border-slate-300 bg-white px-[var(--space-3)] py-[var(--space-2)] text-sm text-slate-900"
+                >
+                  <option value="">All</option>
+                  {STAGES.map((s) => (
+                    <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setDetailsDrawerOpen(true)}
+              disabled={selectedIds.size === 0}
+              className="rounded-[var(--radius-button)] bg-slate-600 px-[var(--space-4)] py-[var(--space-2)] text-white shadow-[var(--shadow-button)] hover:bg-slate-700 disabled:opacity-50 focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2"
+            >
+              Add details {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+            </button>
+          </div>
         </div>
         {loading && <p className="text-slate-500">Loading…</p>}
         {!loading && leads.length === 0 && (
@@ -226,6 +236,7 @@ export function MyLeads() {
             onLeadsChange={setLeads}
             assignableUsers={assignableUsers}
             currentUserId={user?.id ?? null}
+            assigneeNameById={assigneeNameById}
             onAssign={async (leadId, userId) => {
               await assignLead(leadId, userId)
               fetchLeads()
@@ -246,16 +257,11 @@ export function MyLeads() {
                   key={lead.id}
                   lead={lead}
                   isYou={lead.assigned_to === user?.id}
+                  assignedToLabel={lead.assigned_to ? (assigneeNameById.get(lead.assigned_to) ?? lead.assigned_to) : null}
                   selected={selectedIds.has(lead.id)}
-                  onToggle={(checked) => toggleSelect(lead.id, checked)}
-                  onSwipeRight={async () => {
-                    await updateLeadStage(lead.id, 'qualified')
-                    fetchLeads()
-                  }}
-                  onSwipeLeft={async () => {
-                    await updateLeadStage(lead.id, 'new')
-                    fetchLeads()
-                  }}
+                  onToggle={handleToggleSelect}
+                  onSwipeRight={handleSwipeRight}
+                  onSwipeLeft={handleSwipeLeft}
                   showSwipeHint={index === 0}
                 />
               ))}
@@ -294,12 +300,12 @@ export function MyLeads() {
                     <td className="px-[var(--space-4)] py-[var(--space-2)]">
                       {lead.assigned_to ? (
                         <span
-                          className={`inline-flex rounded-[8px] px-2 py-0.5 text-xs font-medium ${
+                          className={`inline-flex rounded-[var(--radius-button)] px-[var(--space-2)] py-[var(--space-1)] text-xs font-medium ${
                             lead.assigned_to === user?.id ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]' : 'bg-slate-100 text-slate-700'
                           }`}
-                          title={lead.assigned_to}
+                          title={assigneeNameById.get(lead.assigned_to) ?? lead.assigned_to}
                         >
-                          {lead.assigned_to === user?.id ? 'You' : 'Team'}
+                          {assigneeNameById.get(lead.assigned_to) ?? lead.assigned_to}
                         </span>
                       ) : (
                         <span className="text-slate-400 text-xs">—</span>

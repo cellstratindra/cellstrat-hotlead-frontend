@@ -1,19 +1,23 @@
+import { memo } from 'react'
 import { Link } from 'react-router-dom'
 import { Phone, Mail, FileText } from 'lucide-react'
 import type { SavedLead } from '../api/client'
 
 interface SavedLeadCardProps {
   lead: SavedLead
+  /** True when this lead is assigned to the current user (used for highlight style) */
   isYou: boolean
+  /** Resolved display name of the assignee (or null if unassigned) */
+  assignedToLabel: string | null
   selected: boolean
-  onToggle: (checked: boolean) => void
+  onToggle: (leadId: number, checked: boolean) => void
 }
 
 function stageLabel(s: string): string {
   return s.replace(/_/g, ' ')
 }
 
-export function SavedLeadCard({ lead, isYou, selected, onToggle }: SavedLeadCardProps) {
+function SavedLeadCardInner({ lead, isYou, assignedToLabel, selected, onToggle }: SavedLeadCardProps) {
   const source = [lead.source_specialty, lead.source_city, lead.source_region].filter(Boolean).join(', ') || '—'
   const contact = [lead.director_name, lead.contact_email].filter(Boolean).join(' · ') || '—'
 
@@ -28,7 +32,7 @@ export function SavedLeadCard({ lead, isYou, selected, onToggle }: SavedLeadCard
           <input
             type="checkbox"
             checked={selected}
-            onChange={(e) => onToggle(e.target.checked)}
+            onChange={(e) => onToggle(lead.id, e.target.checked)}
             className="h-4 w-4 rounded border-slate-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)] shrink-0 mt-0.5"
             aria-label={`Select ${lead.name}`}
           />
@@ -38,7 +42,7 @@ export function SavedLeadCard({ lead, isYou, selected, onToggle }: SavedLeadCard
           <span className="rounded-[var(--radius-button)] border border-[var(--color-primary)]/30 bg-[var(--color-primary)]/10 px-[var(--space-2)] py-[var(--space-1)] text-sm font-bold tabular-nums text-[var(--color-primary)] shrink-0">
             {(lead as { qualification_score?: number }).qualification_score ?? Number(lead.rating).toFixed(1)}
           </span>
-          <span className="rounded-[var(--radius-sm)] border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700 capitalize shrink-0">
+          <span className="rounded-[var(--radius-sm)] border border-slate-200 bg-slate-50 px-[var(--space-2)] py-[var(--space-1)] text-xs font-medium text-slate-700 capitalize shrink-0">
             {stageLabel(lead.stage)}
           </span>
         </div>
@@ -47,7 +51,7 @@ export function SavedLeadCard({ lead, isYou, selected, onToggle }: SavedLeadCard
           {Number(lead.rating).toFixed(1)} rating · {lead.review_count} reviews
         </p>
         {source !== '—' && (
-          <span className="inline-flex w-fit rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600" aria-label={`Source: ${source}`}>
+          <span className="inline-flex w-fit rounded-full bg-slate-100 px-[var(--space-3)] py-[var(--space-1)] text-xs font-medium text-slate-600" aria-label={`Source: ${source}`}>
             {source}
           </span>
         )}
@@ -86,13 +90,13 @@ export function SavedLeadCard({ lead, isYou, selected, onToggle }: SavedLeadCard
               <FileText className="h-5 w-5" aria-hidden />
             </Link>
           </div>
-          {lead.assigned_to ? (
+          {assignedToLabel ? (
             <span
-              className={`inline-flex rounded-[var(--radius-button)] px-2 py-0.5 text-xs font-medium ${
+              className={`inline-flex rounded-[var(--radius-button)] px-[var(--space-2)] py-[var(--space-1)] text-xs font-medium ${
                 isYou ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]' : 'bg-slate-100 text-slate-700'
               }`}
             >
-              {isYou ? 'You' : 'Team'}
+              {assignedToLabel}
             </span>
           ) : (
             <span className="text-slate-400 text-xs">Unassigned</span>
@@ -102,3 +106,5 @@ export function SavedLeadCard({ lead, isYou, selected, onToggle }: SavedLeadCard
     </article>
   )
 }
+
+export const SavedLeadCard = memo(SavedLeadCardInner)

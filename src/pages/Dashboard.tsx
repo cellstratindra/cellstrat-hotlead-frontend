@@ -85,6 +85,8 @@ export function Dashboard() {
   const [kpis, setKpis] = useState<KpiRibbonData | null>(null);
   const [kpisLoading, setKpisLoading] = useState(false);
 
+  // Register header export when leads change. Omit headerActions from deps to avoid render loop
+  // (context value reference changes when setExportAction runs, which would re-trigger this effect).
   useEffect(() => {
     if (!headerActions) return;
     if (leads.length > 0) {
@@ -96,7 +98,7 @@ export function Dashboard() {
       headerActions.setExportAction(null);
     }
     return () => headerActions.setExportAction(null);
-  }, [headerActions, leads]);
+  }, [leads]); // eslint-disable-line react-hooks/exhaustive-deps -- headerActions omitted to prevent loop
 
   useEffect(() => {
     let cancelled = false;
@@ -251,9 +253,16 @@ export function Dashboard() {
     });
   }
 
+  const breadcrumbLabel = `${searchChips.specialty || 'Leads'} in ${searchChips.city || 'Search'}`
+
   return (
     <div className="p-[var(--edge-padding)] md:p-[var(--space-6)] bg-[var(--color-canvas)] min-h-full font-[family-name:var(--font-sans)] flex">
       <div className="flex-1 min-w-0 max-w-screen-xl mx-auto">
+        <nav className="mb-[var(--space-3)] text-sm text-slate-500" aria-label="Breadcrumb">
+          <span>Home</span>
+          <span className="mx-[var(--space-2)]">›</span>
+          <span className="font-medium text-[var(--color-navy)]">{breadcrumbLabel}</span>
+        </nav>
         <KpiRibbon data={kpis} loading={kpisLoading} />
         {/* Mobile: thin sticky strip showing lead count when results exist */}
         {leads.length > 0 && (
@@ -264,15 +273,15 @@ export function Dashboard() {
           </div>
         )}
         {stats != null && (
-          <div className="mb-[var(--space-5)] rounded-[var(--radius-card)] border-default bg-white/80 backdrop-blur-sm px-[var(--space-4)] py-[var(--space-3)] text-sm shadow-[var(--shadow-card)]">
+          <div className="mb-[var(--space-4)] rounded-[var(--radius-card)] border-default bg-white/80 backdrop-blur-sm px-[var(--space-4)] py-[var(--space-3)] text-sm shadow-[var(--shadow-card)]">
             <p className="text-slate-600">
               <span className="font-semibold text-[var(--color-navy)]">Platform reach:</span> {stats.total_leads} saved leads (new: {stats.by_stage?.new ?? 0})
             </p>
           </div>
         )}
 
-        {/* Desktop: inline search + primary actions + kebab (sticky so Enrich/Campaign stay visible) */}
-        <div className="hidden md:block sticky top-14 z-40 bg-white/90 backdrop-blur-sm rounded-[var(--radius-card)] border-default shadow-[var(--shadow-card)] p-[var(--space-5)] mb-[var(--space-6)]">
+        {/* Desktop: sticky compact search + primary actions + kebab */}
+        <div className="hidden md:block sticky top-14 z-40 bg-white/95 backdrop-blur-sm rounded-[var(--radius-card)] border border-slate-200/80 shadow-[var(--shadow-card)] p-[var(--space-4)] mb-[var(--space-4)]">
           <SearchBarWithChips
             key={`search-${searchChips.city}-${searchChips.specialty}-${searchChips.region}`}
             onSubmit={handleSearch}
@@ -280,25 +289,26 @@ export function Dashboard() {
             initialChips={searchChips}
             initialFilters={lastSearch?.filters ?? undefined}
           />
-          <div className="mt-[var(--space-4)] pt-[var(--space-4)] border-t border-slate-200 flex flex-wrap items-center gap-[var(--space-3)]">
+          <div className="mt-[var(--space-3)] pt-[var(--space-3)] border-t border-slate-100 flex flex-wrap items-center gap-[var(--space-2)]">
             <button
+              type="button"
               onClick={() => setCampaignDrawerOpen(true)}
               disabled={leads.length === 0}
-              className="px-[var(--space-4)] py-[var(--space-2)] text-sm font-medium text-white rounded-[var(--radius-button)] shadow-[var(--shadow-button)] bg-gradient-to-r from-violet-500 to-[var(--color-primary)] hover:from-violet-600 hover:to-[var(--color-primary-hover)] disabled:opacity-50 focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2"
+              className="cursor-pointer px-[var(--space-4)] py-[var(--space-2)] text-sm font-medium text-white rounded-[var(--radius-button)] shadow-[var(--shadow-button)] bg-gradient-to-r from-violet-500 to-[var(--color-primary)] hover:from-violet-600 hover:to-[var(--color-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2"
             >
               Generate Campaign
             </button>
-            <button onClick={handleEnrich} disabled={enriching || leads.length === 0} className="px-[var(--space-4)] py-[var(--space-2)] text-sm font-medium text-white bg-purple-600 rounded-[var(--radius-button)] shadow-[var(--shadow-button)] hover:bg-purple-700 disabled:opacity-50 focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2">
+            <button type="button" onClick={handleEnrich} disabled={enriching || leads.length === 0} className="cursor-pointer px-[var(--space-4)] py-[var(--space-2)] text-sm font-medium text-white bg-purple-600 rounded-[var(--radius-button)] shadow-[var(--shadow-button)] hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2">
               {enriching ? 'Enriching...' : 'Enrich with AI'}
             </button>
-            <button onClick={handleSaveAll} disabled={saving || leads.length === 0} className="px-[var(--space-4)] py-[var(--space-2)] text-sm font-medium text-white bg-[var(--color-primary)] rounded-[var(--radius-button)] shadow-[var(--shadow-button)] hover:bg-[var(--color-primary-hover)] disabled:opacity-50 focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2">
+            <button type="button" onClick={handleSaveAll} disabled={saving || leads.length === 0} className="cursor-pointer px-[var(--space-4)] py-[var(--space-2)] text-sm font-medium text-white bg-[var(--color-primary)] rounded-[var(--radius-button)] shadow-[var(--shadow-button)] hover:bg-[var(--color-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2">
               {saving ? 'Saving...' : 'Save'}
             </button>
             <div className="relative" ref={actionsMenuRef}>
               <button
                 type="button"
                 onClick={() => setActionsMenuOpen((o) => !o)}
-                className="flex items-center justify-center rounded-[var(--radius-button)] border border-slate-200 bg-white px-[var(--space-3)] py-[var(--space-2)] text-sm font-medium text-slate-700 hover:bg-slate-50 focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2"
+                className="cursor-pointer flex items-center justify-center rounded-[var(--radius-button)] border border-slate-200 bg-white px-[var(--space-3)] py-[var(--space-2)] text-sm font-medium text-slate-700 hover:bg-slate-50 focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2"
                 aria-expanded={actionsMenuOpen}
                 aria-haspopup="true"
                 aria-label="More actions"
@@ -362,7 +372,7 @@ export function Dashboard() {
           <button
             type="button"
             onClick={() => setFilterDrawerOpen(true)}
-            className="touch-target flex items-center justify-center gap-2 rounded-full bg-[var(--color-primary)] text-white shadow-lg px-5 py-3"
+            className="touch-target cursor-pointer flex items-center justify-center gap-[var(--space-2)] rounded-full bg-[var(--color-primary)] text-white shadow-lg px-[var(--space-4)] py-[var(--space-3)]"
             style={{ minHeight: 'var(--touch-min)', minWidth: 'var(--touch-min)' }}
             aria-label="Search and filters"
           >
@@ -413,7 +423,7 @@ export function Dashboard() {
               type="button"
               onClick={handleEnrich}
               disabled={enriching}
-              className="touch-target flex-1 flex items-center justify-center gap-[var(--space-2)] rounded-[var(--radius-button)] bg-purple-600 text-white py-[var(--space-3)] text-sm font-medium disabled:opacity-50"
+              className="touch-target cursor-pointer flex-1 flex items-center justify-center gap-[var(--space-2)] rounded-[var(--radius-button)] bg-purple-600 text-white py-[var(--space-3)] text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ minHeight: 'var(--touch-min)' }}
             >
               <Sparkles className="h-4 w-4" />
@@ -422,7 +432,7 @@ export function Dashboard() {
             <button
               type="button"
               onClick={() => setCampaignDrawerOpen(true)}
-              className="touch-target flex-1 flex items-center justify-center gap-[var(--space-2)] rounded-[var(--radius-button)] bg-gradient-to-r from-violet-500 to-[var(--color-primary)] text-white py-[var(--space-3)] text-sm font-medium"
+              className="touch-target cursor-pointer flex-1 flex items-center justify-center gap-[var(--space-2)] rounded-[var(--radius-button)] bg-gradient-to-r from-violet-500 to-[var(--color-primary)] text-white py-[var(--space-3)] text-sm font-medium"
               style={{ minHeight: 'var(--touch-min)' }}
             >
               <Mail className="h-4 w-4" />
@@ -432,7 +442,7 @@ export function Dashboard() {
               type="button"
               onClick={handleSaveAll}
               disabled={saving}
-              className="touch-target flex-1 flex items-center justify-center gap-[var(--space-2)] rounded-[var(--radius-button)] bg-[var(--color-primary)] text-white py-[var(--space-3)] text-sm font-medium disabled:opacity-50"
+              className="touch-target cursor-pointer flex-1 flex items-center justify-center gap-[var(--space-2)] rounded-[var(--radius-button)] bg-[var(--color-primary)] text-white py-[var(--space-3)] text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ minHeight: 'var(--touch-min)' }}
             >
               <Save className="h-4 w-4" />

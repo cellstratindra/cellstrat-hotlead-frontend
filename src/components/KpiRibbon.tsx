@@ -1,4 +1,3 @@
-import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts'
 import { Clock, Target, UserX } from 'lucide-react'
 
 export interface KpiRibbonData {
@@ -32,10 +31,6 @@ interface KpiRibbonProps {
 
 export function KpiRibbon({ data = STUB_DATA, loading = false }: KpiRibbonProps) {
   const kpis = data ?? STUB_DATA
-  const demoChartData = [
-    { name: 'Done', value: kpis.demoToDeal.actual, color: 'var(--color-primary)' },
-    { name: 'Remaining', value: Math.max(0, kpis.demoToDeal.target - kpis.demoToDeal.actual), color: 'rgb(226 232 240)' },
-  ]
 
   if (loading) {
     return (
@@ -59,25 +54,8 @@ export function KpiRibbon({ data = STUB_DATA, loading = false }: KpiRibbonProps)
           <h3 className="text-sm font-medium text-[var(--color-navy)]">Demo-to-Deal</h3>
         </div>
         <div className="flex items-center gap-[var(--space-4)]">
-          <div className="h-16 w-16 shrink-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={demoChartData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={18}
-                  outerRadius={28}
-                  paddingAngle={0}
-                  dataKey="value"
-                  stroke="none"
-                >
-                  {demoChartData.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
+          <div className="h-16 w-16 shrink-0 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center">
+            <span className="text-xl font-bold text-[var(--color-primary)]">{kpis.demoToDeal.actual}</span>
           </div>
           <div>
             <p className="text-2xl font-bold text-[var(--color-navy)]">
@@ -88,31 +66,18 @@ export function KpiRibbon({ data = STUB_DATA, loading = false }: KpiRibbonProps)
         </div>
       </div>
 
-      {/* No-Show Rate: vertical bars on mobile for at-a-glance, line on desktop */}
+      {/* No-Show Rate */}
       <div className="rounded-[var(--radius-card)] border-default bg-white/80 backdrop-blur-sm p-[var(--space-4)] shadow-[var(--shadow-card)]">
         <div className="flex items-center gap-[var(--space-2)] mb-[var(--space-2)]">
           <UserX className="h-4 w-4 text-[var(--color-warning)]" aria-hidden />
           <h3 className="text-sm font-medium text-[var(--color-navy)]">No-Show Rate</h3>
         </div>
-        <div className="h-16 md:hidden">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={kpis.noShowRateTrend} layout="vertical" margin={{ top: 4, right: 4, left: 24, bottom: 0 }}>
-              <XAxis type="number" hide domain={[0, 'auto']} />
-              <YAxis type="category" dataKey="name" width={24} tick={{ fontSize: 10 }} />
-              <Tooltip formatter={(v: number) => [v, 'No-shows']} />
-              <Bar dataKey="value" fill="var(--color-warning)" radius={[0, 2, 2, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="h-16 hidden md:block">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={kpis.noShowRateTrend} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
-              <XAxis dataKey="name" hide />
-              <YAxis hide domain={[0, 'auto']} />
-              <Tooltip formatter={(v: number) => [v, 'No-shows']} />
-              <Line type="monotone" dataKey="value" stroke="var(--color-warning)" strokeWidth={2} dot={{ r: 2 }} />
-            </LineChart>
-          </ResponsiveContainer>
+        <div className="h-16 flex items-center">
+          <p className="text-sm text-slate-600">
+            {kpis.noShowRateTrend.length > 0
+              ? kpis.noShowRateTrend.map((d) => `${d.name}: ${d.value}`).join(' · ')
+              : '—'}
+          </p>
         </div>
         <p className="text-xs text-slate-500 mt-[var(--space-1)]">Downward trend = better attendance</p>
       </div>

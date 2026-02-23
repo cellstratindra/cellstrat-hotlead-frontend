@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useUser } from '@clerk/clerk-react'
-import { X, Copy, Send, Bold, Italic, List, FileText } from 'lucide-react'
+import { X, Copy, Send, Bold, Italic, List, FileText, ChevronDown, ChevronUp } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { HotLead } from '../types/leads'
 import type { CampaignDraftResponse } from '../types/leads'
@@ -42,6 +42,7 @@ export function CampaignDrawer({ open, onClose, leads }: CampaignDrawerProps) {
   const [sendSuccess, setSendSuccess] = useState(false)
   const [draftSuccess, setDraftSuccess] = useState(false)
   const [trackWithLead, setTrackWithLead] = useState(true)
+  const [showAiHookMobile, setShowAiHookMobile] = useState(false)
 
   useEffect(() => {
     if (open && leads.length > 0) {
@@ -58,6 +59,7 @@ export function CampaignDrawer({ open, onClose, leads }: CampaignDrawerProps) {
       setSendSuccess(false)
       setDraftSuccess(false)
       setLoading(false)
+      setShowAiHookMobile(false)
     }
   }, [open, leads])
 
@@ -182,7 +184,7 @@ export function CampaignDrawer({ open, onClose, leads }: CampaignDrawerProps) {
         onClick={onClose}
       />
       <aside
-        className="fixed top-0 right-0 z-50 h-full w-full max-w-4xl bg-white shadow-[var(--shadow-dropdown)] flex flex-col rounded-l-[8px] overflow-hidden"
+        className="fixed inset-0 md:inset-auto md:top-0 md:right-0 z-50 h-full w-full md:max-w-4xl bg-white shadow-[var(--shadow-dropdown)] flex flex-col md:rounded-l-[var(--radius-button)] overflow-hidden"
         role="dialog"
         aria-label="Generate Campaign"
       >
@@ -190,11 +192,11 @@ export function CampaignDrawer({ open, onClose, leads }: CampaignDrawerProps) {
           <div className="flex items-center gap-[var(--space-2)] min-w-0">
             <h2 className="text-lg font-semibold text-white truncate">Generate Campaign</h2>
             {gmailConnected ? (
-              <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-300" title="Gmail connected">
+              <span className="shrink-0 inline-flex items-center gap-[var(--space-1)] rounded-full bg-emerald-500/20 px-[var(--space-2)] py-[var(--space-1)] text-xs font-medium text-emerald-300" title="Gmail connected">
                 Gmail connected
               </span>
             ) : (
-              <Link to="/settings" className="shrink-0 inline-flex items-center rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-medium text-amber-200 hover:bg-amber-500/30" title="Connect Gmail">
+              <Link to="/settings" className="shrink-0 inline-flex items-center rounded-full bg-amber-500/20 px-[var(--space-2)] py-[var(--space-1)] text-xs font-medium text-amber-200 hover:bg-amber-500/30" title="Connect Gmail">
                 Connect Gmail
               </Link>
             )}
@@ -211,9 +213,9 @@ export function CampaignDrawer({ open, onClose, leads }: CampaignDrawerProps) {
         </div>
 
         <div className="flex-1 flex flex-col min-h-0 md:flex-row">
-          {/* Left pane: Sequence + Lead + Generate (stacked above composer on mobile) */}
-          <div className="w-full md:w-[320px] shrink-0 border-b md:border-b-0 md:border-r border-slate-200 flex flex-col overflow-hidden max-h-[45vh] md:max-h-none">
-            <div className="p-[var(--space-4)] space-y-[var(--space-4)] overflow-y-auto">
+          {/* Left pane: Sequence + Lead + Generate (stacked above composer on mobile); single-column on mobile */}
+          <div className="w-full md:w-[320px] shrink-0 border-b md:border-b-0 md:border-r border-slate-200 flex flex-col overflow-hidden md:max-h-none flex-1 md:flex-initial min-h-0">
+            <div className="p-[var(--space-4)] space-y-[var(--space-4)] overflow-y-auto flex-1 min-h-0">
               <div>
                 <h3 className="text-sm font-medium text-[var(--color-navy)] mb-[var(--space-2)]">Sequence</h3>
                 <div className="flex items-center gap-[var(--space-2)] flex-wrap">
@@ -250,7 +252,7 @@ export function CampaignDrawer({ open, onClose, leads }: CampaignDrawerProps) {
                     setSelectedLead(lead)
                     setDraft(null)
                   }}
-                  className="w-full rounded-[var(--radius-button)] border border-slate-300 px-[var(--space-3)] py-[var(--space-2)] text-sm text-slate-900 shadow-sm focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:outline-none"
+                  className="w-full rounded-[var(--radius-button)] border border-slate-300 px-[var(--space-3)] py-[var(--space-2)] text-sm text-slate-900 shadow-sm focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:outline-none min-h-[var(--touch-min)]"
                 >
                   {leads.map((l) => (
                     <option key={l.place_id} value={l.place_id}>
@@ -280,22 +282,61 @@ export function CampaignDrawer({ open, onClose, leads }: CampaignDrawerProps) {
                 </div>
               )}
 
-              {draft?.hook && (
-                <div>
-                  <h3 className="text-sm font-medium text-[var(--color-navy)] mb-[var(--space-1)]">Opening hook</h3>
-                  <p className="text-sm text-slate-700 bg-slate-50 rounded-[var(--radius-button)] p-[var(--space-3)]">{draft.hook}</p>
-                </div>
+              {/* Desktop: always show hook + bullets. Mobile: expandable "Show AI hook" */}
+              {(draft?.hook || (draft?.linkedin_bullets?.length ?? 0) > 0) && (
+                <>
+                  <div className="md:hidden">
+                    <button
+                      type="button"
+                      onClick={() => setShowAiHookMobile((v) => !v)}
+                      className="touch-target w-full flex items-center justify-between gap-[var(--space-2)] rounded-[var(--radius-button)] border border-slate-200 bg-slate-50 px-[var(--space-3)] py-[var(--space-2)] text-sm font-medium text-[var(--color-navy)] hover:bg-slate-100"
+                      style={{ minHeight: 'var(--touch-min)' }}
+                      aria-expanded={showAiHookMobile}
+                    >
+                      <span>Show AI hook</span>
+                      {showAiHookMobile ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </button>
+                    {showAiHookMobile && (
+                      <div className="mt-[var(--space-2)] space-y-[var(--space-2)]">
+                        {draft?.hook && (
+                          <div>
+                            <h3 className="text-sm font-medium text-[var(--color-navy)] mb-[var(--space-1)]">Opening hook</h3>
+                            <p className="text-sm text-slate-700 bg-slate-50 rounded-[var(--radius-button)] p-[var(--space-3)]">{draft.hook}</p>
+                          </div>
+                        )}
+                        {draft?.linkedin_bullets?.length ? (
+                          <div>
+                            <h3 className="text-sm font-medium text-[var(--color-navy)] mb-[var(--space-1)]">LinkedIn bullets</h3>
+                            <ul className="list-disc list-inside text-sm text-slate-700 space-y-[var(--space-1)]">
+                              {draft.linkedin_bullets.map((b, i) => (
+                                <li key={i}>{b}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                  <div className="hidden md:block">
+                    {draft?.hook && (
+                      <div>
+                        <h3 className="text-sm font-medium text-[var(--color-navy)] mb-[var(--space-1)]">Opening hook</h3>
+                        <p className="text-sm text-slate-700 bg-slate-50 rounded-[var(--radius-button)] p-[var(--space-3)]">{draft.hook}</p>
+                      </div>
+                    )}
+                    {draft?.linkedin_bullets?.length ? (
+                      <div>
+                        <h3 className="text-sm font-medium text-[var(--color-navy)] mb-[var(--space-1)]">LinkedIn bullets</h3>
+                        <ul className="list-disc list-inside text-sm text-slate-700 space-y-[var(--space-1)]">
+                          {draft.linkedin_bullets.map((b, i) => (
+                            <li key={i}>{b}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </div>
+                </>
               )}
-              {draft?.linkedin_bullets?.length ? (
-                <div>
-                  <h3 className="text-sm font-medium text-[var(--color-navy)] mb-[var(--space-1)]">LinkedIn bullets</h3>
-                  <ul className="list-disc list-inside text-sm text-slate-700 space-y-[var(--space-1)]">
-                    {draft.linkedin_bullets.map((b, i) => (
-                      <li key={i}>{b}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
             </div>
           </div>
 
@@ -311,7 +352,7 @@ export function CampaignDrawer({ open, onClose, leads }: CampaignDrawerProps) {
                   placeholder="recipient@example.com"
                   value={to}
                   onChange={(e) => setTo(e.target.value)}
-                  className="w-full rounded-[var(--radius-button)] border border-slate-200 bg-white px-[var(--space-3)] py-[var(--space-2)] text-sm text-slate-900 placeholder:text-slate-400 focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:outline-none shadow-sm"
+                  className="w-full rounded-[var(--radius-button)] border border-slate-200 bg-white px-[var(--space-3)] py-[var(--space-2)] text-sm text-slate-900 placeholder:text-slate-400 focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:outline-none shadow-sm min-h-[var(--touch-min)]"
                 />
               </div>
               <div>
@@ -322,7 +363,7 @@ export function CampaignDrawer({ open, onClose, leads }: CampaignDrawerProps) {
                   placeholder="cc@example.com"
                   value={cc}
                   onChange={(e) => setCc(e.target.value)}
-                  className="w-full rounded-[var(--radius-button)] border border-slate-200 bg-white px-[var(--space-3)] py-[var(--space-2)] text-sm text-slate-900 placeholder:text-slate-400 focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:outline-none shadow-sm"
+                  className="w-full rounded-[var(--radius-button)] border border-slate-200 bg-white px-[var(--space-3)] py-[var(--space-2)] text-sm text-slate-900 placeholder:text-slate-400 focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:outline-none shadow-sm min-h-[var(--touch-min)]"
                 />
               </div>
               <div>
@@ -333,7 +374,7 @@ export function CampaignDrawer({ open, onClose, leads }: CampaignDrawerProps) {
                   placeholder="bcc@example.com"
                   value={bcc}
                   onChange={(e) => setBcc(e.target.value)}
-                  className="w-full rounded-[var(--radius-button)] border border-slate-200 bg-white px-[var(--space-3)] py-[var(--space-2)] text-sm text-slate-900 placeholder:text-slate-400 focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:outline-none shadow-sm"
+                  className="w-full rounded-[var(--radius-button)] border border-slate-200 bg-white px-[var(--space-3)] py-[var(--space-2)] text-sm text-slate-900 placeholder:text-slate-400 focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:outline-none shadow-sm min-h-[var(--touch-min)]"
                 />
               </div>
               <div>
@@ -344,7 +385,7 @@ export function CampaignDrawer({ open, onClose, leads }: CampaignDrawerProps) {
                   placeholder="Subject"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  className="w-full rounded-[var(--radius-button)] border border-slate-200 bg-white px-[var(--space-3)] py-[var(--space-2)] text-sm text-slate-900 placeholder:text-slate-400 focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:outline-none shadow-sm"
+                  className="w-full rounded-[var(--radius-button)] border border-slate-200 bg-white px-[var(--space-3)] py-[var(--space-2)] text-sm text-slate-900 placeholder:text-slate-400 focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:outline-none shadow-sm min-h-[var(--touch-min)]"
                 />
               </div>
               {/* Gmail-inspired toolbar */}
