@@ -49,6 +49,20 @@ body {
   min-height: 100vh;
   font-family: var(--font-sans);
   background-color: var(--color-canvas);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* Safe area insets for notched devices and fixed bottom/top bars */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.safe-area-insets {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* Touch-friendly tap targets (min 44px); use on buttons/links */

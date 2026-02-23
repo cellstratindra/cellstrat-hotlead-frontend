@@ -68,7 +68,13 @@ function DraggableLeadCard({
     data: { lead },
   })
   const assignedTo = lead.assigned_to ?? null
-  const assigneeLabel = assignedTo ? (assigneeNameById.get(assignedTo) ?? assignedTo) : null
+  const rawLabel = assignedTo ? (assigneeNameById.get(assignedTo) ?? assignedTo) : null
+  const assigneeLabel =
+    rawLabel && (rawLabel === assignedTo || rawLabel.startsWith('user_'))
+      ? assignedTo === currentUserId
+        ? 'You'
+        : 'Team member'
+      : rawLabel
   const showAssign = assignableUsers.length > 0
 
   return (

@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { UserButton, useUser } from '@clerk/clerk-react';
-import { SlidersHorizontal, Download, Mail } from 'lucide-react';
+import { SlidersHorizontal, Mail } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 import { HotLeadsLogo } from './HotLeadsLogo';
 import { useFilterDrawer } from '../contexts/FilterDrawerContext';
-import { useHeaderActions } from '../contexts/HeaderActionsContext';
 import { getGmailStatus } from '../api/client';
 
 const NAV_ITEMS = [
@@ -19,7 +18,6 @@ export function AppLayout() {
   const location = useLocation();
   const path = location.pathname;
   const filterDrawer = useFilterDrawer();
-  const headerActions = useHeaderActions();
   const isDashboard = path === '/dashboard';
   const isMyLeads = path === '/my-leads';
   const showGmailInHeader = !isDashboard && !isMyLeads;
@@ -40,9 +38,9 @@ export function AppLayout() {
   }, [user?.id]);
 
   return (
-    <div className="min-h-screen bg-[var(--color-canvas)]">
-      {/* Mobile: compact top bar with logo, filter (dashboard only), user — z-[1100] above overlays (dnd-kit, drawers) */}
-      <header className="sticky top-0 z-[1100] bg-[var(--color-surface)] shadow-md md:hidden flex items-center justify-between px-[var(--edge-padding)] py-[var(--space-2)] border-b border-default">
+    <div className="min-h-screen min-h-[100dvh] overflow-x-hidden flex flex-col bg-[var(--color-canvas)]">
+      {/* Mobile: slim bar (max 64px), glassmorphic — Logo, filter (dashboard only), user only */}
+      <header className="sticky top-0 z-[1100] max-h-16 md:hidden flex items-center justify-between px-[var(--edge-padding)] py-[var(--space-2)] border-b border-default bg-white/90 backdrop-blur-md shadow-[0_1px_0_0_rgba(0,0,0,0.06)]" style={{ paddingTop: 'max(var(--space-2), env(safe-area-inset-top, 0px))' }}>
         <Link to="/dashboard" className="flex items-center gap-[var(--space-2)]">
           <HotLeadsLogo size="sm" />
         </Link>
@@ -73,24 +71,12 @@ export function AppLayout() {
               <SlidersHorizontal className="h-6 w-6" aria-hidden />
             </button>
           )}
-          {!isDashboard && headerActions?.exportAction && (
-            <button
-              type="button"
-              onClick={headerActions.exportAction.onClick}
-              className="touch-target flex items-center justify-center rounded-[var(--radius-button)] text-slate-600 hover:text-[var(--color-primary)] hover:bg-slate-100 focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2"
-              style={{ minHeight: 'var(--touch-min)', minWidth: 'var(--touch-min)' }}
-              aria-label={headerActions.exportAction.label}
-              title={headerActions.exportAction.label}
-            >
-              <Download className="h-5 w-5" aria-hidden />
-            </button>
-          )}
           <UserButton afterSignOutUrl="/sign-in" />
         </div>
       </header>
-      {/* Desktop: full top nav — z-[1100] so nav stays clickable above My Leads (PipelineBoard/dnd-kit) and other content */}
-      <header className="sticky top-0 z-[1100] bg-[var(--color-surface)] shadow-md md:flex hidden border-b border-default">
-        <div className="mx-auto flex max-w-screen-xl items-center justify-between gap-[var(--space-6)] px-[var(--space-4)] py-[var(--space-3)]">
+      {/* Desktop: slim (max 64px), glassmorphic — Logo, nav, Gmail (when shown), user only; no admin actions */}
+      <header className="sticky top-0 z-[1100] max-h-16 md:flex hidden items-center border-b border-default bg-white/90 backdrop-blur-md shadow-[0_1px_0_0_rgba(0,0,0,0.06)]">
+        <div className="mx-auto flex max-w-screen-xl h-16 items-center justify-between gap-[var(--space-6)] px-[var(--space-4)]">
           <Link to="/dashboard" className="flex shrink-0 items-center gap-[var(--space-2)] mr-[var(--space-4)]" aria-label="Hot Leads home">
             <HotLeadsLogo size="lg" />
           </Link>
@@ -101,7 +87,7 @@ export function AppLayout() {
                 <Link
                   key={to}
                   to={to}
-                  className={`relative text-base font-medium transition-colors duration-200 ${
+                  className={`relative text-base font-semibold transition-colors duration-200 ${
                     active ? 'text-[var(--color-primary)]' : 'text-slate-600 hover:text-[var(--color-primary)]'
                   }`}
                   aria-current={active ? 'page' : undefined}
@@ -130,22 +116,11 @@ export function AppLayout() {
                 Connect Gmail
               </Link>
             ))}
-            {!isDashboard && headerActions?.exportAction && (
-              <button
-                type="button"
-                onClick={headerActions.exportAction.onClick}
-                className="flex items-center gap-[var(--space-2)] rounded-[var(--radius-button)] border border-slate-200 bg-white px-[var(--space-3)] py-[var(--space-2)] text-sm font-medium text-slate-700 hover:bg-slate-50 focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2"
-                aria-label={headerActions.exportAction.label}
-              >
-                <Download className="h-4 w-4" aria-hidden />
-                {headerActions.exportAction.label}
-              </button>
-            )}
             <UserButton afterSignOutUrl="/sign-in" />
           </div>
         </div>
       </header>
-      <main className="relative z-0 mx-auto max-w-screen-xl p-[var(--edge-padding)] md:pb-[var(--space-4)] pb-20">
+      <main className="relative z-0 flex-1 min-h-0 mx-auto w-full max-w-screen-xl p-[var(--edge-padding)] md:pb-[var(--space-4)] pb-20 overflow-x-hidden">
         <Outlet key={path} />
       </main>
       <BottomNav />

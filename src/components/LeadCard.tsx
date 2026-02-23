@@ -215,12 +215,12 @@ export function LeadCard({
             </div>
           )}
 
-          {/* Bottom row: primary action + ... menu */}
+          {/* Bottom row: primary action + ... menu (44px touch targets on mobile) */}
           <div className="mt-auto pt-[var(--space-2)] flex items-center justify-between gap-2 border-t border-slate-100">
             <button
               type="button"
               onClick={() => setReviewsOpen(true)}
-              className="rounded-md border border-[var(--color-primary)] bg-white px-3 py-1.5 text-xs font-medium text-[var(--color-primary)] shadow-sm hover:bg-[var(--color-primary)]/5"
+              className="touch-target min-h-[44px] min-w-[44px] rounded-md border border-[var(--color-primary)] bg-white px-3 py-2 text-xs font-medium text-[var(--color-primary)] shadow-sm hover:bg-[var(--color-primary)]/5 md:min-h-0 md:min-w-0 md:py-1.5"
             >
               View reviews
             </button>
@@ -228,7 +228,7 @@ export function LeadCard({
               <button
                 type="button"
                 onClick={() => setCardMenuOpen((o) => !o)}
-                className="flex h-8 w-8 items-center justify-center rounded text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                className="touch-target flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded text-slate-500 hover:bg-slate-100 hover:text-slate-700 md:h-8 md:w-8 md:min-h-0 md:min-w-0"
                 aria-label="More actions"
                 aria-expanded={cardMenuOpen}
               >

@@ -43,8 +43,8 @@ export function Coverage() {
   const emergingCity = chartData.length > 1 ? chartData[chartData.length - 1] : null
 
   return (
-    <div className="min-h-screen bg-[var(--color-canvas)] p-[var(--edge-padding)] md:p-[var(--space-6)] pb-20 md:pb-[var(--space-6)]">
-      <div className="mx-auto max-w-6xl">
+    <div className="min-h-screen min-h-[100dvh] bg-[var(--color-canvas)] p-[var(--edge-padding)] md:p-[var(--space-6)] pb-20 md:pb-[var(--space-6)] overflow-x-hidden">
+      <div className="mx-auto max-w-6xl w-full min-w-0 overflow-x-hidden">
         {/* Breadcrumb */}
         <nav className="mb-[var(--space-4)] text-sm text-slate-500" aria-label="Breadcrumb">
           <span>Analytics</span>

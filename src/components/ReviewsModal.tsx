@@ -17,6 +17,7 @@ import type { HotLead, ReviewChatScope, ReviewInsightsResponse, ReviewWithFlags 
 import { fetchReviewChat, fetchReviewInsights, fetchReviewSummary } from '../api/client'
 
 const REVIEW_EXPAND_LEN = 120
+const SUMMARY_PREVIEW_LEN = 220
 
 const SUGGESTED_QUESTIONS = [
   'How many patients gave bad reviews?',
@@ -175,6 +176,11 @@ export function ReviewsModal({ lead, open, onClose, onSummaryGenerated }: Review
   const [lastScopeUsed, setLastScopeUsed] = useState<string | null>(null)
   const [lastReviewCountUsed, setLastReviewCountUsed] = useState<number | null>(null)
   const scopeDropdownRef = useRef<HTMLDivElement>(null)
+  const chatMessagesRef = useRef<HTMLDivElement>(null)
+  const chatInputRef = useRef<HTMLInputElement>(null)
+  const [summaryExpanded, setSummaryExpanded] = useState(false)
+  const REVIEWS_BATCH = 15
+  const [reviewsVisibleCount, setReviewsVisibleCount] = useState(REVIEWS_BATCH)
 
   const reviews = lead?.reviews ?? []
   const sortedReviews = useMemo(() => sortReviews(reviews, sortBy), [reviews, sortBy])
@@ -193,6 +199,8 @@ export function ReviewsModal({ lead, open, onClose, onSummaryGenerated }: Review
     setQuestionInput('')
     setLastScopeUsed(null)
     setLastReviewCountUsed(null)
+    setSummaryExpanded(false)
+    setReviewsVisibleCount(REVIEWS_BATCH)
   }, [lead?.place_id])
 
   useEffect(() => {
@@ -203,6 +211,13 @@ export function ReviewsModal({ lead, open, onClose, onSummaryGenerated }: Review
     document.addEventListener('click', onClick, true)
     return () => document.removeEventListener('click', onClick, true)
   }, [scopeDropdownOpen])
+
+  // Scroll chat to bottom when a new message is added (e.g. AI response)
+  useEffect(() => {
+    if (tab !== 'insights' || !chatMessagesRef.current) return
+    const el = chatMessagesRef.current
+    el.scrollTop = el.scrollHeight
+  }, [tab, messages.length])
 
   // Load insights when switching to insights tab and we have a lead with reviews
   useEffect(() => {
@@ -318,15 +333,19 @@ export function ReviewsModal({ lead, open, onClose, onSummaryGenerated }: Review
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+      className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4 bg-black/50"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-labelledby="reviews-modal-title"
     >
       <div
-        className="bg-white rounded-t-xl md:rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden font-sans text-slate-900"
-        style={{ fontFamily: 'Inter, var(--font-sans), ui-sans-serif, sans-serif' }}
+        className="bg-white rounded-t-2xl md:rounded-xl shadow-xl max-w-2xl w-full max-h-[100dvh] md:max-h-[85vh] flex flex-col overflow-hidden font-sans text-slate-900"
+        style={{
+          fontFamily: 'Inter, var(--font-sans), ui-sans-serif, sans-serif',
+          paddingTop: 'max(0px, env(safe-area-inset-top))',
+          paddingBottom: 'max(0px, env(safe-area-inset-bottom))',
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Sticky header + tabs: safe zone below, box-shadow so content doesn’t bleed */}
@@ -403,24 +422,39 @@ export function ReviewsModal({ lead, open, onClose, onSummaryGenerated }: Review
                 <div className="space-y-4">
                   {displaySummary && !displaySummary.includes('not configured') ? (
                     <>
-                      {/* Glassmorphic AI summary card with 1px blue border */}
+                      {/* Glassmorphic AI summary card with 1px blue border; accordion preview on mobile */}
                       <div className="relative overflow-hidden rounded-xl border border-[var(--color-primary)] bg-white/80 p-4 shadow-sm backdrop-blur-md">
                         <span className="inline-block rounded-full bg-[var(--color-primary)]/10 px-2 py-0.5 text-xs font-medium text-[var(--color-primary)]">
                           AI-Generated
                         </span>
                         <p className="mt-2 text-sm text-slate-700 leading-relaxed" style={{ fontFamily: 'var(--font-sans), Inter, sans-serif' }}>
-                          {summaryNegativeKeywords.length > 0
-                            ? segmentForHighlight(displaySummary, summaryNegativeKeywords).map((seg, i) =>
-                                seg.type === 'highlight' ? (
-                                  <span key={i} className="underline decoration-amber-500 decoration-2 text-amber-800 font-medium">
-                                    {seg.text}
-                                  </span>
-                                ) : (
-                                  <span key={i}>{seg.text}</span>
+                          {(() => {
+                            const isLong = displaySummary.length > SUMMARY_PREVIEW_LEN
+                            const showFull = summaryExpanded || !isLong
+                            const text = showFull ? displaySummary : displaySummary.slice(0, SUMMARY_PREVIEW_LEN) + '…'
+                            const content = summaryNegativeKeywords.length > 0 && showFull
+                              ? segmentForHighlight(text, summaryNegativeKeywords).map((seg, i) =>
+                                  seg.type === 'highlight' ? (
+                                    <span key={i} className="underline decoration-amber-500 decoration-2 text-amber-800 font-medium">
+                                      {seg.text}
+                                    </span>
+                                  ) : (
+                                    <span key={i}>{seg.text}</span>
+                                  )
                                 )
-                              )
-                            : displaySummary}
+                              : text
+                            return <>{content}</>
+                          })()}
                         </p>
+                        {displaySummary.length > SUMMARY_PREVIEW_LEN && (
+                          <button
+                            type="button"
+                            onClick={() => setSummaryExpanded((e) => !e)}
+                            className="mt-2 text-[var(--color-primary)] text-xs font-medium hover:underline min-h-[44px] min-w-[44px] touch-target md:min-h-0 md:min-w-0"
+                          >
+                            {summaryExpanded ? 'Show less' : 'Show more'}
+                          </button>
+                        )}
                       </div>
                       {/* Sentiment chips: negatives 🚩 from summaryNegativeKeywords, positives ✅ from lead.top_strengths */}
                       {(summaryNegativeKeywords.length > 0 || (lead?.top_strengths?.length ?? 0) > 0 || (lead?.top_complaints?.length ?? 0) > 0) && (
@@ -528,7 +562,7 @@ export function ReviewsModal({ lead, open, onClose, onSummaryGenerated }: Review
                     </select>
                   </div>
                   <ul className="space-y-2" role="list">
-                    {sortedReviews.map((r, idx) => (
+                    {sortedReviews.slice(0, reviewsVisibleCount).map((r, idx) => (
                       <li key={idx}>
                         <ReviewItem
                           text={r.text}
@@ -539,6 +573,17 @@ export function ReviewsModal({ lead, open, onClose, onSummaryGenerated }: Review
                       </li>
                     ))}
                   </ul>
+                  {reviewsVisibleCount < sortedReviews.length && (
+                    <div className="mt-4 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={() => setReviewsVisibleCount((c) => c + REVIEWS_BATCH)}
+                        className="touch-target min-h-[44px] rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 md:min-h-0"
+                      >
+                        Load more reviews
+                      </button>
+                    </div>
+                  )}
                 </>
               )}
             </>
@@ -558,7 +603,7 @@ export function ReviewsModal({ lead, open, onClose, onSummaryGenerated }: Review
                     <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-none">
                       <h3 className="text-xs font-medium text-slate-500 mb-3 uppercase tracking-wider">Sentiment</h3>
                       {negativePositiveData.length > 0 ? (
-                        <div className="relative h-32 w-full">
+                        <div className="relative h-20 md:h-32 w-full">
                           <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                               <defs>
@@ -605,7 +650,7 @@ export function ReviewsModal({ lead, open, onClose, onSummaryGenerated }: Review
                     <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-none">
                       <h3 className="text-xs font-medium text-slate-500 mb-3 uppercase tracking-wider">Review Distribution</h3>
                       {!ratingDistribution.every((d) => d.count === 0) ? (
-                        <div className="h-32 w-full min-w-0">
+                        <div className="h-20 md:h-32 w-full min-w-0">
                           <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={ratingDistribution} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                               <XAxis dataKey="star" tick={{ fontSize: 10 }} />
@@ -719,8 +764,11 @@ export function ReviewsModal({ lead, open, onClose, onSummaryGenerated }: Review
                     )}
                   </div>
 
-                  {/* Response stream: user left, AI with faint blue bg + markdown-style */}
-                  <div className="space-y-2 max-h-44 overflow-y-auto rounded-lg p-2 mb-2">
+                  {/* Response stream: user left, AI with faint blue bg + markdown-style; scroll to bottom on new message */}
+                  <div
+                    ref={chatMessagesRef}
+                    className="space-y-2 min-h-[28vh] max-h-[55vh] sm:min-h-0 sm:max-h-44 overflow-y-auto rounded-lg p-2 mb-2"
+                  >
                     {messages.length === 0 && (
                       <p className="text-xs text-slate-500">Ask a question or click a suggestion above.</p>
                     )}
@@ -753,17 +801,25 @@ export function ReviewsModal({ lead, open, onClose, onSummaryGenerated }: Review
                     })}
                   </div>
 
-                  {/* Floating Ask AI bar: pill-shaped, subtle glow (Electric Blue) */}
-                  <div className="sticky bottom-0 left-0 right-0 -mx-5 -mb-5 px-5 py-4 bg-white/90 backdrop-blur-md border-t border-slate-200/60 rounded-b-xl">
+                  {/* Floating Ask AI bar: pill-shaped, subtle glow (Electric Blue); keyboard-aware on mobile */}
+                  <div
+                    className="sticky bottom-0 left-0 right-0 -mx-5 -mb-5 px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-white/90 backdrop-blur-md border-t border-slate-200/60 rounded-b-xl"
+                  >
                     <div
                       className="flex gap-2 items-center rounded-full border border-slate-200 bg-white px-4 py-3 shadow-[0_0_0_1px_rgba(0,0,0,0.03),0_2px_4px_rgba(0,0,0,0.05),0_0_20px_-5px_rgba(59,130,246,0.15)] focus-within:border-blue-500/50 focus-within:shadow-[0_0_0_1px_rgba(59,130,246,0.3),0_0_24px_-4px_rgba(59,130,246,0.2)] transition-all"
                     >
                       <Sparkles className="h-4 w-4 text-slate-400 shrink-0" aria-hidden />
                       <input
+                        ref={chatInputRef}
                         type="text"
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendQuestion(chatInput)}
+                        onFocus={() => {
+                          requestAnimationFrame(() => {
+                            chatInputRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' })
+                          })
+                        }}
                         placeholder="Ask AI…"
                         className="flex-1 min-w-0 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 outline-none"
                         disabled={chatLoading}

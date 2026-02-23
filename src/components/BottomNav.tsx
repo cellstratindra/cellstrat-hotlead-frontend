@@ -20,10 +20,10 @@ export function BottomNav() {
   return (
     <>
       <nav
-        className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white border-t border-slate-200 shadow-[var(--shadow-soft)]"
+        className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white border-t border-slate-200 shadow-[var(--shadow-soft)] safe-area-bottom"
         style={{
-          paddingBottom: 'env(safe-area-inset-bottom)',
-          minHeight: 'var(--touch-min)',
+          paddingBottom: 'max(var(--space-2), env(safe-area-inset-bottom, 0px))',
+          minHeight: 'calc(var(--touch-min) + env(safe-area-inset-bottom, 0px))',
         }}
         aria-label="Bottom navigation"
       >

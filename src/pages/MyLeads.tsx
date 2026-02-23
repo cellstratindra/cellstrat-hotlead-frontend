@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
+import { Download } from 'lucide-react'
 import {
   bulkUpdateLeads,
   exportForCrmUrl,
@@ -15,7 +16,6 @@ import {
 import { PipelineBoard } from '../components/PipelineBoard'
 import { LeadDetailsDrawer, type LeadDetailsUpdates } from '../components/LeadDetailsDrawer'
 import { SwipeableLeadCard } from '../components/SwipeableLeadCard'
-import { useHeaderActions } from '../contexts/HeaderActionsContext'
 
 const STAGES = ['new', 'contacted', 'meeting_booked', 'qualified', 'nurtured']
 type ViewMode = 'list' | 'pipeline'
@@ -33,7 +33,6 @@ export function MyLeads() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false)
   const [assignableUsers, setAssignableUsers] = useState<AssignableUser[]>([])
-  const headerActions = useHeaderActions()
 
   const assigneeNameById = useMemo(() => {
     const map = new Map<string, string>()
@@ -43,6 +42,17 @@ export function MyLeads() {
     if (user?.id) map.set(user.id, displayName)
     return map
   }, [assignableUsers, user?.id, displayName])
+
+  /** Display-safe label: never show raw user id; use "You" or "Team member" when name is missing or is an id. */
+  const assigneeDisplayLabel = useCallback(
+    (assignedTo: string | null, resolved: string | null, isYou: boolean): string | null => {
+      if (!assignedTo) return null
+      const label = resolved ?? assignedTo
+      if (label !== assignedTo && !label.startsWith('user_')) return label
+      return isYou ? displayName : 'Team member'
+    },
+    [displayName]
+  )
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -64,14 +74,6 @@ export function MyLeads() {
         URL.revokeObjectURL(a.href)
       })
   }, [stageFilter])
-
-  // Register header export on mount; update when handleExportCrm changes. Do not depend on
-  // headerActions object — the context value is recreated each render and would cause an infinite loop.
-  useEffect(() => {
-    if (!headerActions) return
-    headerActions.setExportAction({ label: 'Export for CRM', onClick: handleExportCrm })
-    return () => headerActions.setExportAction(null)
-  }, [handleExportCrm])
 
   const fetchLeads = useCallback(() => {
     const params: Parameters<typeof getLeads>[0] =
@@ -214,14 +216,25 @@ export function MyLeads() {
                 </select>
               </div>
             )}
-            <button
-              type="button"
-              onClick={() => setDetailsDrawerOpen(true)}
-              disabled={selectedIds.size === 0}
-              className="rounded-[var(--radius-button)] bg-slate-600 px-[var(--space-4)] py-[var(--space-2)] text-white shadow-[var(--shadow-button)] hover:bg-slate-700 disabled:opacity-50 focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2"
-            >
-              Add details {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
-            </button>
+            <div className="flex items-center gap-[var(--space-2)]">
+              <button
+                type="button"
+                onClick={() => setDetailsDrawerOpen(true)}
+                disabled={selectedIds.size === 0}
+                className="rounded-[var(--radius-button)] bg-[var(--color-primary)] px-[var(--space-4)] py-[var(--space-2)] text-sm font-semibold text-white shadow-[var(--shadow-button)] hover:bg-[var(--color-primary-hover)] disabled:opacity-50 focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2 touch-target min-h-[44px]"
+              >
+                Add details {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+              </button>
+              <button
+                type="button"
+                onClick={handleExportCrm}
+                className="touch-target flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-[var(--radius-button)] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2 md:h-10 md:w-10 md:min-h-[32px] md:min-w-[32px]"
+                aria-label="Export for CRM"
+                title="Export for CRM"
+              >
+                <Download className="h-5 w-5" aria-hidden />
+              </button>
+            </div>
           </div>
         </div>
         {loading && <p className="text-slate-500">Loading…</p>}
@@ -257,7 +270,7 @@ export function MyLeads() {
                   key={lead.id}
                   lead={lead}
                   isYou={lead.assigned_to === user?.id}
-                  assignedToLabel={lead.assigned_to ? (assigneeNameById.get(lead.assigned_to) ?? lead.assigned_to) : null}
+                  assignedToLabel={lead.assigned_to ? assigneeDisplayLabel(lead.assigned_to, assigneeNameById.get(lead.assigned_to) ?? null, lead.assigned_to === user?.id) : null}
                   selected={selectedIds.has(lead.id)}
                   onToggle={handleToggleSelect}
                   onSwipeRight={handleSwipeRight}
@@ -303,9 +316,9 @@ export function MyLeads() {
                           className={`inline-flex rounded-[var(--radius-button)] px-[var(--space-2)] py-[var(--space-1)] text-xs font-medium ${
                             lead.assigned_to === user?.id ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]' : 'bg-slate-100 text-slate-700'
                           }`}
-                          title={assigneeNameById.get(lead.assigned_to) ?? lead.assigned_to}
+                          title={assigneeDisplayLabel(lead.assigned_to, assigneeNameById.get(lead.assigned_to) ?? null, lead.assigned_to === user?.id) ?? undefined}
                         >
-                          {assigneeNameById.get(lead.assigned_to) ?? lead.assigned_to}
+                          {assigneeDisplayLabel(lead.assigned_to, assigneeNameById.get(lead.assigned_to) ?? null, lead.assigned_to === user?.id)}
                         </span>
                       ) : (
                         <span className="text-slate-400 text-xs">—</span>

@@ -256,8 +256,8 @@ export function Dashboard() {
   const breadcrumbLabel = `${searchChips.specialty || 'Leads'} in ${searchChips.city || 'Search'}`
 
   return (
-    <div className="p-[var(--edge-padding)] md:p-[var(--space-6)] bg-[var(--color-canvas)] min-h-full font-[family-name:var(--font-sans)] flex">
-      <div className="flex-1 min-w-0 max-w-screen-xl mx-auto">
+    <div className="p-[var(--edge-padding)] md:p-[var(--space-6)] bg-[var(--color-canvas)] min-h-screen min-h-[100dvh] overflow-x-hidden font-[family-name:var(--font-sans)] flex">
+      <div className="flex-1 min-w-0 w-full max-w-screen-xl mx-auto overflow-x-hidden">
         <nav className="mb-[var(--space-3)] text-sm text-slate-500" aria-label="Breadcrumb">
           <span>Home</span>
           <span className="mx-[var(--space-2)]">›</span>
