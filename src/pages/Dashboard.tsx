@@ -1,9 +1,9 @@
-import { useEffect, useState, useCallback, type FC } from 'react';
+import { useEffect, useState, useCallback, useRef, type FC } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { searchLeads, saveLeads, enrichLeads, fetchMarketInsights, getStats, getKpis, bulkUpdateLeads, type StatsResponse, type ScoreWeights } from '../api/client';
 import type { HotLead, MarketInsightsResponse } from '../types/leads';
 import { LeadCardGrid, getLeadSelectId } from '../components/LeadCardGrid';
-import { ExportCsvButton } from '../components/ExportCsvButton';
+import { ExportCsvButton, exportLeadsToCsv } from '../components/ExportCsvButton';
 import { CampaignDrawer } from '../components/CampaignDrawer';
 import { LeadDetailsDrawer, type LeadDetailsUpdates } from '../components/LeadDetailsDrawer';
 import { SearchBarWithChips, type SearchChips, type SearchFilters } from '../components/SearchBarWithChips';
@@ -11,7 +11,10 @@ import { SearchProgressBar } from '../components/SearchProgressBar';
 import { KpiRibbon, type KpiRibbonData } from '../components/KpiRibbon';
 import { FilterDrawer } from '../components/FilterDrawer';
 import { useSearchResults } from '../contexts/SearchResultsContext';
-import { X, SlidersHorizontal, Sparkles, Mail, Save } from 'lucide-react';
+import { useFilterDrawer } from '../contexts/FilterDrawerContext';
+import { useHeaderActions } from '../contexts/HeaderActionsContext';
+import { X, SlidersHorizontal, Sparkles, Mail, Save, MoreVertical, BarChart3, UserPlus } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const DEFAULT_SCORE_WEIGHTS: ScoreWeights = {
   rating_weight: 50, review_count_weight: 25, phone_weight: 15, enrichment_weight: 10,
@@ -27,28 +30,28 @@ const AiPoweredInsights: FC<AiPoweredInsightsProps> = ({ report, onClose, qualif
   if (!report) return null;
 
   return (
-    <aside className="fixed top-16 right-4 w-96 bg-white rounded-[8px] shadow-[var(--shadow-dropdown)] p-6 z-20">
-      <div className="flex justify-between items-center mb-4">
+    <aside className="fixed top-16 right-[var(--space-4)] w-96 bg-white rounded-[var(--radius-card)] border-default shadow-[var(--shadow-dropdown)] p-[var(--space-6)] z-20">
+      <div className="flex justify-between items-center mb-[var(--space-4)]">
         <h2 className="text-lg font-bold text-[var(--color-navy)]">AI-Powered Insights</h2>
-        <button onClick={onClose} className="text-slate-500 hover:text-slate-800"><X size={20} /></button>
+        <button onClick={onClose} className="touch-target flex items-center justify-center rounded-[var(--radius-button)] text-slate-500 hover:text-slate-800 focus:ring-2 focus:ring-[var(--color-primary)]" aria-label="Close"><X size={20} /></button>
       </div>
-      <div className="space-y-6">
+      <div className="space-y-[var(--space-6)]">
         {report.market_pulse && (
           <div>
             <h3 className="font-semibold text-slate-700">Review Summary</h3>
-            <p className="text-sm text-slate-600 mt-1">{report.market_pulse}</p>
+            <p className="text-sm text-slate-600 mt-[var(--space-1)]">{report.market_pulse}</p>
           </div>
         )}
         <div>
-            <h3 className="font-semibold text-slate-700 mb-2">Review Distribution</h3>
-            <div className="bg-slate-50 p-4 rounded-lg text-center text-sm text-slate-500">[Chart Placeholder]</div>
+            <h3 className="font-semibold text-slate-700 mb-[var(--space-2)]">Review Distribution</h3>
+            <div className="bg-slate-50 p-[var(--space-4)] rounded-[var(--radius-button)] text-center text-sm text-slate-500">[Chart Placeholder]</div>
         </div>
-        <div className="bg-slate-50 rounded-[8px] p-4">
+        <div className="bg-slate-50 rounded-[var(--radius-card)] p-[var(--space-4)]">
             <h3 className="font-semibold text-slate-700">Qualification Score</h3>
             <p className="text-5xl font-bold text-[var(--color-primary)]">{qualificationScore}</p>
-            <p className="text-xs text-slate-500 mt-1">Reflects follow-up count and last contact recency for this market set.</p>
+            <p className="text-xs text-slate-500 mt-[var(--space-1)]">Reflects follow-up count and last contact recency for this market set.</p>
         </div>
-        <button className="w-full bg-[var(--color-primary)] text-white font-semibold py-2 rounded-[8px] hover:bg-[var(--color-primary-hover)] transition-colors">Generate Insights</button>
+        <button className="w-full bg-[var(--color-primary)] text-white font-semibold py-[var(--space-2)] rounded-[var(--radius-button)] shadow-[var(--shadow-button)] hover:bg-[var(--color-primary-hover)] transition-colors focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2">Generate Insights</button>
       </div>
     </aside>
   );
@@ -73,9 +76,27 @@ export function Dashboard() {
   const [campaignDrawerOpen, setCampaignDrawerOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
-  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
+  const filterDrawer = useFilterDrawer();
+  const headerActions = useHeaderActions();
+  const filterDrawerOpen = filterDrawer?.open ?? false;
+  const setFilterDrawerOpen = filterDrawer ? (open: boolean) => (open ? filterDrawer.openDrawer() : filterDrawer.closeDrawer()) : () => {};
   const [kpis, setKpis] = useState<KpiRibbonData | null>(null);
   const [kpisLoading, setKpisLoading] = useState(false);
+
+  useEffect(() => {
+    if (!headerActions) return;
+    if (leads.length > 0) {
+      headerActions.setExportAction({
+        label: 'Export CSV',
+        onClick: () => exportLeadsToCsv(leads),
+      });
+    } else {
+      headerActions.setExportAction(null);
+    }
+    return () => headerActions.setExportAction(null);
+  }, [headerActions, leads]);
 
   useEffect(() => {
     let cancelled = false;
@@ -102,6 +123,20 @@ export function Dashboard() {
   useEffect(() => {
     getStats().then(setStats).catch(() => setStats(null));
   }, [leads.length]);
+
+  useEffect(() => {
+    if (!actionsMenuOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => e.key === 'Escape' && setActionsMenuOpen(false);
+    const onClick = (e: MouseEvent) => {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target as Node)) setActionsMenuOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('click', onClick, true);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('click', onClick, true);
+    };
+  }, [actionsMenuOpen]);
 
   async function handleSaveAll() {
     if (leads.length === 0) return;
@@ -217,19 +252,27 @@ export function Dashboard() {
   }
 
   return (
-    <div className="p-[var(--edge-padding)] md:p-6 bg-[var(--color-canvas)] min-h-full font-[family-name:var(--font-sans)] flex">
+    <div className="p-[var(--edge-padding)] md:p-[var(--space-6)] bg-[var(--color-canvas)] min-h-full font-[family-name:var(--font-sans)] flex">
       <div className="flex-1 min-w-0 max-w-screen-xl mx-auto">
         <KpiRibbon data={kpis} loading={kpisLoading} />
+        {/* Mobile: thin sticky strip showing lead count when results exist */}
+        {leads.length > 0 && (
+          <div className="md:hidden sticky top-[52px] z-30 py-[var(--space-2)] px-[var(--edge-padding)] bg-[var(--color-canvas)] border-b border-slate-200 -mx-[var(--edge-padding)] mb-[var(--space-4)]">
+            <p className="text-sm font-medium text-slate-600">
+              {leads.length} lead{leads.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+        )}
         {stats != null && (
-          <div className="mb-5 rounded-[8px] border border-slate-200 bg-white px-4 py-3 text-sm shadow-[var(--shadow-dropdown)]">
+          <div className="mb-[var(--space-5)] rounded-[var(--radius-card)] border-default bg-white/80 backdrop-blur-sm px-[var(--space-4)] py-[var(--space-3)] text-sm shadow-[var(--shadow-card)]">
             <p className="text-slate-600">
               <span className="font-semibold text-[var(--color-navy)]">Platform reach:</span> {stats.total_leads} saved leads (new: {stats.by_stage?.new ?? 0})
             </p>
           </div>
         )}
 
-        {/* Desktop: inline search + actions */}
-        <div className="hidden md:block bg-white rounded-[8px] shadow-[var(--shadow-dropdown)] p-5 mb-8">
+        {/* Desktop: inline search + primary actions + kebab (sticky so Enrich/Campaign stay visible) */}
+        <div className="hidden md:block sticky top-14 z-40 bg-white/90 backdrop-blur-sm rounded-[var(--radius-card)] border-default shadow-[var(--shadow-card)] p-[var(--space-5)] mb-[var(--space-6)]">
           <SearchBarWithChips
             key={`search-${searchChips.city}-${searchChips.specialty}-${searchChips.region}`}
             onSubmit={handleSearch}
@@ -237,35 +280,85 @@ export function Dashboard() {
             initialChips={searchChips}
             initialFilters={lastSearch?.filters ?? undefined}
           />
-          <div className="mt-4 pt-4 border-t border-slate-200 flex flex-wrap items-center gap-3">
+          <div className="mt-[var(--space-4)] pt-[var(--space-4)] border-t border-slate-200 flex flex-wrap items-center gap-[var(--space-3)]">
             <button
               onClick={() => setCampaignDrawerOpen(true)}
               disabled={leads.length === 0}
-              className="px-4 py-2 text-sm font-medium text-white rounded-[8px] shadow-sm bg-gradient-to-r from-violet-500 to-[var(--color-primary)] hover:from-violet-600 hover:to-[var(--color-primary-hover)] disabled:opacity-50"
+              className="px-[var(--space-4)] py-[var(--space-2)] text-sm font-medium text-white rounded-[var(--radius-button)] shadow-[var(--shadow-button)] bg-gradient-to-r from-violet-500 to-[var(--color-primary)] hover:from-violet-600 hover:to-[var(--color-primary-hover)] disabled:opacity-50 focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2"
             >
               Generate Campaign
             </button>
-            <ExportCsvButton leads={leads} />
-            <button onClick={handleSaveAll} disabled={saving || leads.length === 0} className="px-4 py-2 text-sm font-medium text-white bg-[var(--color-primary)] rounded-[8px] shadow-sm hover:bg-[var(--color-primary-hover)] disabled:opacity-50">
-              {saving ? 'Saving...' : 'Save all'}
-            </button>
-            <button onClick={handleEnrich} disabled={enriching || leads.length === 0} className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-[8px] shadow-sm hover:bg-purple-700 disabled:opacity-50">
+            <button onClick={handleEnrich} disabled={enriching || leads.length === 0} className="px-[var(--space-4)] py-[var(--space-2)] text-sm font-medium text-white bg-purple-600 rounded-[var(--radius-button)] shadow-[var(--shadow-button)] hover:bg-purple-700 disabled:opacity-50 focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2">
               {enriching ? 'Enriching...' : 'Enrich with AI'}
             </button>
-            <button onClick={handleGetInsights} disabled={insightsLoading || leads.length === 0} className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-[8px] shadow-sm hover:bg-orange-600 disabled:opacity-50">
-              {insightsLoading ? 'Getting...' : 'Get Insights'}
+            <button onClick={handleSaveAll} disabled={saving || leads.length === 0} className="px-[var(--space-4)] py-[var(--space-2)] text-sm font-medium text-white bg-[var(--color-primary)] rounded-[var(--radius-button)] shadow-[var(--shadow-button)] hover:bg-[var(--color-primary-hover)] disabled:opacity-50 focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2">
+              {saving ? 'Saving...' : 'Save'}
             </button>
-            <button
-              onClick={() => setDetailsDrawerOpen(true)}
-              disabled={selectedIds.size === 0}
-              className="px-4 py-2 text-sm font-medium text-white bg-slate-600 rounded-[8px] shadow-sm hover:bg-slate-700 disabled:opacity-50"
-            >
-              Add details {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
-            </button>
+            <div className="relative" ref={actionsMenuRef}>
+              <button
+                type="button"
+                onClick={() => setActionsMenuOpen((o) => !o)}
+                className="flex items-center justify-center rounded-[var(--radius-button)] border border-slate-200 bg-white px-[var(--space-3)] py-[var(--space-2)] text-sm font-medium text-slate-700 hover:bg-slate-50 focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2"
+                aria-expanded={actionsMenuOpen}
+                aria-haspopup="true"
+                aria-label="More actions"
+              >
+                <MoreVertical className="h-5 w-5" aria-hidden />
+              </button>
+              {actionsMenuOpen && (
+                <div className="absolute right-0 top-full z-50 mt-[var(--space-1)] w-56 rounded-[var(--radius-card)] border-default bg-white py-[var(--space-1)] shadow-[var(--shadow-dropdown)]" role="menu">
+                  <div className="py-[var(--space-1)]" role="none">
+                    <ExportCsvButton
+                      leads={leads}
+                      className="flex w-full items-center gap-[var(--space-2)] rounded-none border-0 bg-transparent py-[var(--space-2)] px-[var(--space-3)] text-left text-sm text-slate-700 hover:bg-slate-100 focus:ring-0"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { handleGetInsights(); setActionsMenuOpen(false); }}
+                    disabled={insightsLoading || leads.length === 0}
+                    className="flex w-full items-center gap-[var(--space-2)] py-[var(--space-2)] px-[var(--space-3)] text-left text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                    role="menuitem"
+                  >
+                    <BarChart3 className="h-4 w-4" aria-hidden />
+                    {insightsLoading ? 'Getting...' : 'Get Insights'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setDetailsDrawerOpen(true); setActionsMenuOpen(false); }}
+                    disabled={selectedIds.size === 0}
+                    className="flex w-full items-center gap-[var(--space-2)] py-[var(--space-2)] px-[var(--space-3)] text-left text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                    role="menuitem"
+                  >
+                    <UserPlus className="h-4 w-4" aria-hidden />
+                    Add details {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { handleSaveAll(); setActionsMenuOpen(false); }}
+                    disabled={saving || leads.length === 0}
+                    className="flex w-full items-center gap-[var(--space-2)] py-[var(--space-2)] px-[var(--space-3)] text-left text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                    role="menuitem"
+                  >
+                    <Save className="h-4 w-4" aria-hidden />
+                    {saving ? 'Saving...' : 'Save all'}
+                  </button>
+                  <div className="my-[var(--space-1)] border-t border-slate-100" role="none" />
+                  <Link
+                    to="/settings"
+                    onClick={() => setActionsMenuOpen(false)}
+                    className="flex w-full items-center gap-[var(--space-2)] py-[var(--space-2)] px-[var(--space-3)] text-left text-sm text-slate-700 hover:bg-slate-100"
+                    role="menuitem"
+                  >
+                    Settings
+                  </Link>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         {/* Mobile: FAB to open filter drawer */}
-        <div className="md:hidden mb-4 flex justify-end">
+        <div className="md:hidden mb-[var(--space-4)] flex justify-end">
           <button
             type="button"
             onClick={() => setFilterDrawerOpen(true)}
@@ -278,11 +371,11 @@ export function Dashboard() {
           </button>
         </div>
         
-        {error && <div className="mb-4 rounded-lg bg-red-100 p-4 text-sm text-red-700">{error}</div>}
-        {saveMessage && <p className="mb-3 text-sm text-green-600">{saveMessage}</p>}
+        {error && <div className="mb-[var(--space-4)] rounded-[var(--radius-card)] bg-red-100 p-[var(--space-4)] text-sm text-red-700">{error}</div>}
+        {saveMessage && <p className="mb-[var(--space-3)] text-sm text-green-600">{saveMessage}</p>}
         
         {loading ? (
-          <div className="py-16 flex justify-center items-start">
+          <div className="py-[var(--space-8)] flex justify-center items-start">
             <SearchProgressBar active={loading} />
           </div>
         ) : (
@@ -295,9 +388,9 @@ export function Dashboard() {
         )}
 
         {!loading && leads.length === 0 && (
-            <div className="text-center py-16 bg-white rounded-[8px] shadow-[var(--shadow-dropdown)]">
+            <div className="text-center py-[var(--space-8)] bg-white/80 backdrop-blur-sm rounded-[var(--radius-card)] border-default shadow-[var(--shadow-card)]">
                 <h3 className="text-lg font-semibold text-[var(--color-navy)]">No leads found</h3>
-                <p className="mt-2 text-slate-500">Use the search bar above to find new leads.</p>
+                <p className="mt-[var(--space-2)] text-slate-500">Use the search bar above to find new leads.</p>
             </div>
         )}
 
@@ -313,14 +406,14 @@ export function Dashboard() {
         {/* Mobile: sticky action bar above bottom nav */}
         {leads.length > 0 && (
           <div
-            className="fixed left-0 right-0 z-30 md:hidden bottom-[56px] border-t border-slate-200 bg-white/95 backdrop-blur-sm px-[var(--edge-padding)] py-2 flex items-center gap-2"
-            style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}
+            className="fixed left-0 right-0 z-30 md:hidden bottom-[56px] border-t border-slate-200 bg-white/95 backdrop-blur-sm px-[var(--edge-padding)] py-[var(--space-2)] flex items-center gap-[var(--space-2)]"
+            style={{ paddingBottom: 'max(var(--space-2), env(safe-area-inset-bottom))' }}
           >
             <button
               type="button"
               onClick={handleEnrich}
               disabled={enriching}
-              className="touch-target flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-purple-600 text-white py-2.5 text-sm font-medium disabled:opacity-50"
+              className="touch-target flex-1 flex items-center justify-center gap-[var(--space-2)] rounded-[var(--radius-button)] bg-purple-600 text-white py-[var(--space-3)] text-sm font-medium disabled:opacity-50"
               style={{ minHeight: 'var(--touch-min)' }}
             >
               <Sparkles className="h-4 w-4" />
@@ -329,7 +422,7 @@ export function Dashboard() {
             <button
               type="button"
               onClick={() => setCampaignDrawerOpen(true)}
-              className="touch-target flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-violet-500 to-[var(--color-primary)] text-white py-2.5 text-sm font-medium"
+              className="touch-target flex-1 flex items-center justify-center gap-[var(--space-2)] rounded-[var(--radius-button)] bg-gradient-to-r from-violet-500 to-[var(--color-primary)] text-white py-[var(--space-3)] text-sm font-medium"
               style={{ minHeight: 'var(--touch-min)' }}
             >
               <Mail className="h-4 w-4" />
@@ -339,7 +432,7 @@ export function Dashboard() {
               type="button"
               onClick={handleSaveAll}
               disabled={saving}
-              className="touch-target flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-[var(--color-primary)] text-white py-2.5 text-sm font-medium disabled:opacity-50"
+              className="touch-target flex-1 flex items-center justify-center gap-[var(--space-2)] rounded-[var(--radius-button)] bg-[var(--color-primary)] text-white py-[var(--space-3)] text-sm font-medium disabled:opacity-50"
               style={{ minHeight: 'var(--touch-min)' }}
             >
               <Save className="h-4 w-4" />

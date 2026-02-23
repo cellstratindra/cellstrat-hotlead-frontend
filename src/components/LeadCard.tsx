@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
-import { Zap, User } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Zap, User, Phone, Mail, FileText } from 'lucide-react'
 import type { HotLead } from '../types/leads'
 import { ReviewsModal } from './ReviewsModal'
 import { TeamDispatchPopover } from './TeamDispatchPopover'
@@ -95,12 +96,12 @@ export function LeadCard({
   return (
     <>
       <article
-        className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+        className="rounded-[var(--radius-card)] border-default bg-white/90 backdrop-blur-sm p-[var(--space-5)] shadow-[var(--shadow-card)] transition-shadow hover:shadow-[var(--shadow-dropdown)]"
         aria-label={`Lead: ${lead.name}`}
       >
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-[var(--space-4)]">
           {/* Header: clinic name (left) + Tier & Score chips (right) */}
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start justify-between gap-[var(--space-3)]">
             {showCheckbox && onToggle && (
               <input
                 type="checkbox"
@@ -113,39 +114,43 @@ export function LeadCard({
             <h3 className="text-lg font-semibold leading-tight text-slate-900 flex-1 min-w-0">
               {lead.name ?? '—'}
             </h3>
-            <div className="flex shrink-0 items-center gap-2 flex-wrap justify-end">
+            <div className="flex shrink-0 items-center gap-[var(--space-2)] flex-wrap justify-end">
               {score != null && (
                 <span
-                  className="text-xl font-bold tabular-nums text-[var(--color-primary)] cursor-help rounded-md bg-[var(--color-primary)]/10 px-2 py-0.5"
-                  title="Recommendation score (0–100): based on rating, review volume, phone availability, and enrichment. Higher = stronger fit for outreach."
-                  aria-label={`Score ${score}`}
+                  className="text-xl font-bold tabular-nums text-[var(--color-primary)] cursor-help rounded-[var(--radius-button)] bg-[var(--color-primary)]/15 px-[var(--space-2)] py-[var(--space-1)] border border-[var(--color-primary)]/30"
+                  title="Hot score (0–100): based on rating, review volume, phone availability, and enrichment. Higher = stronger fit for outreach."
+                  aria-label={`Hot score ${score}`}
                 >
                   {score}
                 </span>
               )}
               {tier && (
-                <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm font-semibold text-slate-800">
+                <span className="rounded-[var(--radius-sm)] border border-slate-200 bg-slate-50 px-2 py-0.5 text-sm font-semibold text-slate-800">
                   {tier}
                 </span>
               )}
               {showWorkflowBadge && (
-                <span className="inline-flex items-center gap-1 rounded-[8px] bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700" title="In nurture sequence">
+                <span className="inline-flex items-center gap-1 rounded-[var(--radius-button)] bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700" title="In nurture sequence">
                   <Zap className="h-3 w-3" aria-hidden />
                   Nurture
                 </span>
               )}
             </div>
           </div>
-          {/* Secondary line: phone, city/source (mobile-friendly) */}
-          {(lead.phone || marketLabel) && (
-            <p className="text-sm text-slate-500 -mt-2">
-              {lead.phone && <span>{lead.phone}</span>}
-              {lead.phone && marketLabel && <span className="mx-1.5">·</span>}
-              {marketLabel && <span>{marketLabel}</span>}
+          {/* Lead Source pill when marketLabel is present */}
+          {marketLabel && (
+            <span className="inline-flex w-fit rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600" aria-label={`Lead source: ${marketLabel}`}>
+              {marketLabel}
+            </span>
+          )}
+          {/* Secondary line: phone (mobile-friendly) */}
+          {lead.phone && (
+            <p className="text-sm text-slate-500 -mt-1">
+              {lead.phone}
             </p>
           )}
           {score != null && (
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-[var(--space-2)] flex-wrap">
               <button
                 type="button"
                 onClick={handleExplainScore}
@@ -164,7 +169,7 @@ export function LeadCard({
             <p className="text-xs font-medium text-slate-600">
               {matchBandLabel(lead.match_band)}
               {lead.relevance_score != null && (
-                <span className="ml-1" title={`Relevance score: ${lead.relevance_score}`}>
+                <span className="ml-[var(--space-1)]" title={`Relevance score: ${lead.relevance_score}`}>
                   ({Math.round(lead.relevance_score)})
                 </span>
               )}
@@ -175,7 +180,7 @@ export function LeadCard({
               Top {Math.round(100 - lead.percentile_in_market)}%{marketLabel ? ` of ${marketLabel}` : ''} · Rank {lead.rank_in_market ?? '—'} of {lead.total_in_market}
             </p>
           )}
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+          <dl className="grid grid-cols-2 gap-x-[var(--space-4)] gap-y-[var(--space-2)] text-sm">
             <div>
               <dt className="text-slate-500">Rating</dt>
               <dd className="font-medium text-slate-900">{(Number(lead.rating) ?? 0).toFixed(1)}</dd>
@@ -206,7 +211,7 @@ export function LeadCard({
           )}
 
           {(lead.contact_email || lead.director_name) && (
-            <div className="text-sm text-slate-600 space-y-0.5">
+            <div className="text-sm text-slate-600 space-y-[var(--space-1)]">
               {lead.director_name && (
                 <p><span className="text-slate-500">Director </span>{lead.director_name}</p>
               )}
@@ -223,13 +228,13 @@ export function LeadCard({
           )}
 
           {showAssignedTo && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-[var(--space-2)]">
               <span className="text-xs text-slate-500">Assigned to</span>
               <button
                 ref={assignAnchorRef}
                 type="button"
                 onClick={() => setDispatchOpen((o) => !o)}
-                className="flex items-center gap-1.5 rounded-[8px] border border-slate-200 bg-slate-50 px-2 py-1 text-sm hover:bg-slate-100"
+                className="flex items-center gap-[var(--space-2)] rounded-[var(--radius-button)] border border-slate-200 bg-slate-50 px-[var(--space-2)] py-[var(--space-1)] text-sm hover:bg-slate-100"
                 aria-label="Assign or change assignment"
               >
                 {assignedTo ? (
@@ -255,11 +260,45 @@ export function LeadCard({
             </div>
           )}
 
-          <div className="mt-auto pt-2">
+          {/* Footer: quick actions (Call, Email, Note) + View reviews */}
+          <div className="mt-auto pt-[var(--space-2)] flex flex-wrap items-center gap-[var(--space-2)] border-t border-slate-100">
+            <div className="flex items-center gap-[var(--space-1)]">
+              {lead.phone && (
+                <a
+                  href={`tel:${lead.phone.replace(/\D/g, '')}`}
+                  className="touch-target flex items-center justify-center rounded-[var(--radius-button)] p-[var(--space-2)] text-slate-600 hover:bg-slate-100 hover:text-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2"
+                  style={{ minHeight: 'var(--touch-min)', minWidth: 'var(--touch-min)' }}
+                  aria-label="Call"
+                >
+                  <Phone className="h-5 w-5" aria-hidden />
+                </a>
+              )}
+              {lead.contact_email && (
+                <a
+                  href={`mailto:${lead.contact_email}`}
+                  className="touch-target flex items-center justify-center rounded-[var(--radius-button)] p-[var(--space-2)] text-slate-600 hover:bg-slate-100 hover:text-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2"
+                  style={{ minHeight: 'var(--touch-min)', minWidth: 'var(--touch-min)' }}
+                  aria-label="Email"
+                >
+                  <Mail className="h-5 w-5" aria-hidden />
+                </a>
+              )}
+              {leadId != null && (
+                <Link
+                  to={`/leads/${leadId}`}
+                  className="touch-target flex items-center justify-center rounded-[var(--radius-button)] p-[var(--space-2)] text-slate-600 hover:bg-slate-100 hover:text-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2"
+                  style={{ minHeight: 'var(--touch-min)', minWidth: 'var(--touch-min)' }}
+                  aria-label="Note / View detail"
+                >
+                  <FileText className="h-5 w-5" aria-hidden />
+                </Link>
+              )}
+            </div>
             <button
               type="button"
               onClick={() => setReviewsOpen(true)}
-              className="rounded-lg border border-[var(--color-primary)] bg-white px-3 py-2 text-sm font-medium text-[var(--color-primary)] shadow-sm hover:bg-[var(--color-primary)]/5"
+              className="rounded-[var(--radius-button)] border border-[var(--color-primary)] bg-white px-[var(--space-3)] py-[var(--space-2)] text-sm font-medium text-[var(--color-primary)] shadow-sm hover:bg-[var(--color-primary)]/5 touch-target"
+              style={{ minHeight: 'var(--touch-min)' }}
             >
               View reviews
             </button>

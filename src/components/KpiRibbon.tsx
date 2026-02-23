@@ -1,4 +1,4 @@
-import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from 'recharts'
+import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts'
 import { Clock, Target, UserX } from 'lucide-react'
 
 export interface KpiRibbonData {
@@ -34,15 +34,15 @@ export function KpiRibbon({ data = STUB_DATA, loading = false }: KpiRibbonProps)
   const kpis = data ?? STUB_DATA
   const demoChartData = [
     { name: 'Done', value: kpis.demoToDeal.actual, color: 'var(--color-primary)' },
-    { name: 'Remaining', value: Math.max(0, kpis.demoToDeal.target - kpis.demoToDeal.actual), color: '#e2e8f0' },
+    { name: 'Remaining', value: Math.max(0, kpis.demoToDeal.target - kpis.demoToDeal.actual), color: 'rgb(226 232 240)' },
   ]
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-[var(--space-4)] mb-[var(--space-6)]">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="rounded-[8px] border border-slate-200 bg-white p-4 shadow-[var(--shadow-dropdown)] animate-pulse">
-            <div className="h-4 bg-slate-200 rounded w-1/2 mb-3" />
+          <div key={i} className="rounded-[var(--radius-card)] border-default bg-white/80 backdrop-blur-sm p-[var(--space-4)] shadow-[var(--shadow-card)] animate-pulse">
+            <div className="h-4 bg-slate-200 rounded w-1/2 mb-[var(--space-3)]" />
             <div className="h-16 bg-slate-100 rounded" />
           </div>
         ))}
@@ -51,14 +51,14 @@ export function KpiRibbon({ data = STUB_DATA, loading = false }: KpiRibbonProps)
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6" role="region" aria-label="Sales Command Center">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-[var(--space-4)] mb-[var(--space-6)]" role="region" aria-label="Sales Command Center">
       {/* Demo-to-Deal */}
-      <div className="rounded-[8px] border border-slate-200 bg-white p-4 shadow-[var(--shadow-dropdown)]">
-        <div className="flex items-center gap-2 mb-2">
+      <div className="rounded-[var(--radius-card)] border-default bg-white/80 backdrop-blur-sm p-[var(--space-4)] shadow-[var(--shadow-card)]">
+        <div className="flex items-center gap-[var(--space-2)] mb-[var(--space-2)]">
           <Target className="h-4 w-4 text-[var(--color-primary)]" aria-hidden />
           <h3 className="text-sm font-medium text-[var(--color-navy)]">Demo-to-Deal</h3>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-[var(--space-4)]">
           <div className="h-16 w-16 shrink-0">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -88,37 +88,47 @@ export function KpiRibbon({ data = STUB_DATA, loading = false }: KpiRibbonProps)
         </div>
       </div>
 
-      {/* No-Show Rate */}
-      <div className="rounded-[8px] border border-slate-200 bg-white p-4 shadow-[var(--shadow-dropdown)]">
-        <div className="flex items-center gap-2 mb-2">
-          <UserX className="h-4 w-4 text-amber-500" aria-hidden />
+      {/* No-Show Rate: vertical bars on mobile for at-a-glance, line on desktop */}
+      <div className="rounded-[var(--radius-card)] border-default bg-white/80 backdrop-blur-sm p-[var(--space-4)] shadow-[var(--shadow-card)]">
+        <div className="flex items-center gap-[var(--space-2)] mb-[var(--space-2)]">
+          <UserX className="h-4 w-4 text-[var(--color-warning)]" aria-hidden />
           <h3 className="text-sm font-medium text-[var(--color-navy)]">No-Show Rate</h3>
         </div>
-        <div className="h-16">
+        <div className="h-16 md:hidden">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={kpis.noShowRateTrend} layout="vertical" margin={{ top: 4, right: 4, left: 24, bottom: 0 }}>
+              <XAxis type="number" hide domain={[0, 'auto']} />
+              <YAxis type="category" dataKey="name" width={24} tick={{ fontSize: 10 }} />
+              <Tooltip formatter={(v: number) => [v, 'No-shows']} />
+              <Bar dataKey="value" fill="var(--color-warning)" radius={[0, 2, 2, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="h-16 hidden md:block">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={kpis.noShowRateTrend} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
               <XAxis dataKey="name" hide />
               <YAxis hide domain={[0, 'auto']} />
               <Tooltip formatter={(v: number) => [v, 'No-shows']} />
-              <Line type="monotone" dataKey="value" stroke="#f59e0b" strokeWidth={2} dot={{ r: 2 }} />
+              <Line type="monotone" dataKey="value" stroke="var(--color-warning)" strokeWidth={2} dot={{ r: 2 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
-        <p className="text-xs text-slate-500 mt-1">Downward trend = better attendance</p>
+        <p className="text-xs text-slate-500 mt-[var(--space-1)]">Downward trend = better attendance</p>
       </div>
 
       {/* Lead Response Time */}
-      <div className="rounded-[8px] border border-slate-200 bg-white p-4 shadow-[var(--shadow-dropdown)]">
-        <div className="flex items-center gap-2 mb-2">
+      <div className="rounded-[var(--radius-card)] border-default bg-white/80 backdrop-blur-sm p-[var(--space-4)] shadow-[var(--shadow-card)]">
+        <div className="flex items-center gap-[var(--space-2)] mb-[var(--space-2)]">
           <Clock className="h-4 w-4 text-[var(--color-primary)]" aria-hidden />
           <h3 className="text-sm font-medium text-[var(--color-navy)]">Lead Response Time</h3>
         </div>
-        <div className="flex items-baseline gap-1">
+        <div className="flex items-baseline gap-[var(--space-1)]">
           <span className="text-2xl font-bold text-[var(--color-navy)] tabular-nums">
             {kpis.leadResponseTimeHours}h
           </span>
         </div>
-        <p className="text-xs text-slate-500 mt-1">Avg speed-to-lead</p>
+        <p className="text-xs text-slate-500 mt-[var(--space-1)]">Avg speed-to-lead</p>
       </div>
     </div>
   )

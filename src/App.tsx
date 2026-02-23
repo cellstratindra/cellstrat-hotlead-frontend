@@ -1,6 +1,8 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { SignIn, SignUp, SignedIn, SignedOut } from '@clerk/clerk-react'
 import { SearchResultsProvider } from './contexts/SearchResultsContext'
+import { FilterDrawerProvider } from './contexts/FilterDrawerContext'
+import { HeaderActionsProvider } from './contexts/HeaderActionsContext'
 import { AppLayout } from './components/AppLayout'
 import { Coverage } from './pages/Coverage'
 import { Dashboard } from './pages/Dashboard'
@@ -42,7 +44,11 @@ export default function App() {
           <>
             <SignedIn>
               <SearchResultsProvider>
-                <AppLayout />
+                <FilterDrawerProvider>
+                  <HeaderActionsProvider>
+                    <AppLayout />
+                  </HeaderActionsProvider>
+                </FilterDrawerProvider>
               </SearchResultsProvider>
             </SignedIn>
             <SignedOut>

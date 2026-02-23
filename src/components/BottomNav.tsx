@@ -20,7 +20,7 @@ export function BottomNav() {
   return (
     <>
       <nav
-        className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]"
+        className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white border-t border-slate-200 shadow-[var(--shadow-soft)]"
         style={{
           paddingBottom: 'env(safe-area-inset-bottom)',
           minHeight: 'var(--touch-min)',
@@ -28,7 +28,7 @@ export function BottomNav() {
         aria-label="Bottom navigation"
       >
         <div
-          className="flex items-center justify-around px-[var(--edge-padding)] py-2"
+          className="flex items-center justify-around px-[var(--edge-padding)] py-[var(--space-2)]"
           style={{ minHeight: 'var(--touch-min)' }}
         >
           {MOBILE_NAV_ITEMS.map(({ to, label, icon: Icon }) => {
@@ -37,11 +37,12 @@ export function BottomNav() {
               <Link
                 key={to}
                 to={to}
-                className={`touch-target flex flex-col items-center justify-center gap-0.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+                className={`touch-target flex flex-col items-center justify-center gap-0.5 rounded-[var(--radius-button)] px-[var(--space-3)] py-[var(--space-2)] text-xs font-medium transition-colors focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2 ${
                   active
                     ? 'text-[var(--color-primary)]'
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
+                style={{ minHeight: 'var(--touch-min)' }}
                 aria-current={active ? 'page' : undefined}
               >
                 <Icon className="h-6 w-6 shrink-0" aria-hidden />
@@ -53,7 +54,8 @@ export function BottomNav() {
             <button
               type="button"
               onClick={() => setMoreOpen((o) => !o)}
-              className="touch-target flex flex-col items-center justify-center gap-0.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors"
+              className="touch-target flex flex-col items-center justify-center gap-0.5 rounded-[var(--radius-button)] px-[var(--space-3)] py-[var(--space-2)] text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2"
+              style={{ minHeight: 'var(--touch-min)' }}
               aria-expanded={moreOpen}
               aria-haspopup="true"
             >
@@ -68,7 +70,7 @@ export function BottomNav() {
                   onClick={() => setMoreOpen(false)}
                 />
                 <ul
-                  className="absolute bottom-full left-0 mb-1 w-40 rounded-lg border border-slate-200 bg-white py-1 shadow-lg z-50"
+                  className="absolute bottom-full left-0 mb-1 w-40 rounded-[var(--radius-card)] border-default bg-white py-1 shadow-[var(--shadow-dropdown)] z-50"
                   role="menu"
                 >
                   {MORE_ITEMS.map(({ to, label }) => (
@@ -77,7 +79,7 @@ export function BottomNav() {
                         to={to}
                         role="menuitem"
                         onClick={() => setMoreOpen(false)}
-                        className="block px-4 py-3 text-sm text-slate-700 hover:bg-slate-50"
+                        className="flex items-center block px-[var(--space-4)] py-[var(--space-3)] text-sm text-slate-700 hover:bg-slate-50 min-h-[var(--touch-min)]"
                       >
                         {label}
                       </Link>

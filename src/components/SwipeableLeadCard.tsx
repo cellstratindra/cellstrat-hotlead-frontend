@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { Check, X } from 'lucide-react'
 import { SavedLeadCard } from './SavedLeadCard'
 import type { SavedLead } from '../api/client'
 
 const SWIPE_THRESHOLD = 80
+const HINT_KEY = 'hotleads_swipe_hint_seen'
 
 interface SwipeableLeadCardProps {
   lead: SavedLead
@@ -12,6 +13,8 @@ interface SwipeableLeadCardProps {
   onToggle: (checked: boolean) => void
   onSwipeRight: () => void
   onSwipeLeft: () => void
+  /** When true, show a one-time "Swipe right to qualify" hint (e.g. first card in list) */
+  showSwipeHint?: boolean
 }
 
 export function SwipeableLeadCard({
@@ -21,10 +24,23 @@ export function SwipeableLeadCard({
   onToggle,
   onSwipeRight,
   onSwipeLeft,
+  showSwipeHint = false,
 }: SwipeableLeadCardProps) {
   const [offset, setOffset] = useState(0)
   const [action, setAction] = useState<'right' | 'left' | null>(null)
+  const [hintVisible, setHintVisible] = useState(false)
   const startX = useRef(0)
+
+  useEffect(() => {
+    if (!showSwipeHint || typeof sessionStorage === 'undefined') return
+    const seen = sessionStorage.getItem(HINT_KEY)
+    if (!seen) setHintVisible(true)
+  }, [showSwipeHint])
+
+  const dismissHint = () => {
+    setHintVisible(false)
+    try { sessionStorage.setItem(HINT_KEY, '1') } catch { /* ignore */ }
+  }
 
   function handleTouchStart(e: React.TouchEvent) {
     startX.current = e.touches[0].clientX
@@ -52,7 +68,7 @@ export function SwipeableLeadCard({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-xl">
+    <div className="relative overflow-hidden rounded-[var(--radius-card)]">
       {/* Background actions (visible when swiping) */}
       <div className="absolute inset-0 flex">
         <div
@@ -73,11 +89,30 @@ export function SwipeableLeadCard({
       <div
         className="relative touch-pan-y"
         style={{ transform: `translateX(${offset}px)` }}
-        onTouchStart={handleTouchStart}
+        onTouchStart={(e) => { if (hintVisible) dismissHint(); handleTouchStart(e) }}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <SavedLeadCard lead={lead} isYou={isYou} selected={selected} onToggle={onToggle} />
+        <div className="relative">
+          {hintVisible && (
+            <div
+              className="absolute top-0 right-0 z-10 rounded-[var(--radius-sm)] bg-[var(--color-primary)]/90 text-white px-2 py-1 text-xs font-medium shadow-[var(--shadow-soft)] flex items-center gap-1"
+              role="status"
+              aria-live="polite"
+            >
+              <span>Swipe right → qualify</span>
+              <button
+                type="button"
+                onClick={dismissHint}
+                className="rounded p-0.5 hover:bg-white/20 focus:ring-2 focus:ring-white focus:ring-offset-1 focus:ring-offset-[var(--color-primary)]"
+                aria-label="Dismiss hint"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+          <SavedLeadCard lead={lead} isYou={isYou} selected={selected} onToggle={onToggle} />
+        </div>
       </div>
     </div>
   )

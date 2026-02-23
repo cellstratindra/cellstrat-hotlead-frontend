@@ -74,7 +74,7 @@ export function SearchBarWithChips({ onSubmit, loading, initialChips = {}, initi
     onSubmit(submissionChips, filters);
   }
 
-  const inputStyle = "w-full rounded-[8px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:outline-none relative z-0";
+  const inputStyle = "w-full rounded-[var(--radius-button)] border border-slate-200 bg-white px-[var(--space-4)] py-[var(--space-3)] text-sm text-slate-700 shadow-[var(--shadow-soft)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:outline-none relative z-0";
   const selectWrapperStyle = "relative z-10";
 
   return (
@@ -160,7 +160,7 @@ export function SearchBarWithChips({ onSubmit, loading, initialChips = {}, initi
         <button
           type="submit"
           disabled={loading}
-          className="w-full flex items-center justify-center gap-2 rounded-[8px] bg-[var(--color-primary)] px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[var(--color-primary-hover)] disabled:opacity-50 transition-colors"
+          className="w-full flex items-center justify-center gap-[var(--space-2)] rounded-[var(--radius-button)] bg-[var(--color-primary)] px-[var(--space-4)] py-[var(--space-3)] text-sm font-semibold text-white shadow-[var(--shadow-button)] hover:bg-[var(--color-primary-hover)] disabled:opacity-50 transition-colors focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2"
         >
           <Search size={16} />
           {loading ? 'Searching…' : 'Search'}

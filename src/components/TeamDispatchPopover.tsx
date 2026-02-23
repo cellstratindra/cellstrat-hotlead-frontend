@@ -50,7 +50,7 @@ export function TeamDispatchPopover({
   return (
     <div
       ref={popRef}
-      className="fixed z-50 min-w-[200px] rounded-[8px] border border-slate-200 bg-white py-2 shadow-[var(--shadow-dropdown)]"
+      className="fixed z-50 min-w-[200px] rounded-[var(--radius-card)] border-default bg-white py-2 shadow-[var(--shadow-dropdown)]"
       style={{
         left: rect.left,
         top: rect.bottom + 4,

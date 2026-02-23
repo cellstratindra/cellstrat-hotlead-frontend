@@ -118,7 +118,7 @@ export function Settings() {
 
       {/* Gmail Connection Status card – Clean Enterprise */}
       <section
-        className="bg-white rounded-[8px] shadow-lg border border-slate-200 overflow-hidden"
+        className="bg-white rounded-[var(--radius-card)] border-default shadow-[var(--shadow-card)] overflow-hidden"
         aria-labelledby="gmail-heading"
       >
         <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">

@@ -15,42 +15,45 @@ function allFlaggedKeywords(lead: HotLead): string {
   return [...set].join('; ')
 }
 
-interface ExportCsvButtonProps {
-  leads: HotLead[]
+/** Programmatic export for use from header actions */
+export function exportLeadsToCsv(leads: HotLead[]): void {
+  if (leads.length === 0) return
+  const headers = ['name', 'rating', 'review_count', 'phone', 'reach_band', 'tier', 'estimated_budget_tier', 'flagged_keywords', 'top_complaints', 'top_strengths', 'enrichment_summary', 'outreach_suggestion']
+  const rows = leads.map((lead) => [
+    escapeCsvCell(lead.name ?? ''),
+    String(lead.rating ?? 0),
+    String(lead.review_count ?? 0),
+    escapeCsvCell(lead.phone ?? ''),
+    escapeCsvCell(lead.reach_band ?? ''),
+    escapeCsvCell(lead.tier ?? ''),
+    escapeCsvCell(lead.estimated_budget_tier ?? ''),
+    escapeCsvCell(allFlaggedKeywords(lead)),
+    escapeCsvCell((lead.top_complaints ?? []).join('; ')),
+    escapeCsvCell((lead.top_strengths ?? []).join('; ')),
+    escapeCsvCell(lead.enrichment_summary ?? ''),
+    escapeCsvCell(lead.outreach_suggestion ?? ''),
+  ])
+  const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'hot-leads.csv'
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
-export function ExportCsvButton({ leads }: ExportCsvButtonProps) {
-  function handleClick() {
-    const headers = ['name', 'rating', 'review_count', 'phone', 'reach_band', 'tier', 'estimated_budget_tier', 'flagged_keywords', 'top_complaints', 'top_strengths', 'enrichment_summary', 'outreach_suggestion']
-    const rows = leads.map((lead) => [
-      escapeCsvCell(lead.name ?? ''),
-      String(lead.rating ?? 0),
-      String(lead.review_count ?? 0),
-      escapeCsvCell(lead.phone ?? ''),
-      escapeCsvCell(lead.reach_band ?? ''),
-      escapeCsvCell(lead.tier ?? ''),
-      escapeCsvCell(lead.estimated_budget_tier ?? ''),
-      escapeCsvCell(allFlaggedKeywords(lead)),
-      escapeCsvCell((lead.top_complaints ?? []).join('; ')),
-      escapeCsvCell((lead.top_strengths ?? []).join('; ')),
-      escapeCsvCell(lead.enrichment_summary ?? ''),
-      escapeCsvCell(lead.outreach_suggestion ?? ''),
-    ])
-    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'hot-leads.csv'
-    a.click()
-    URL.revokeObjectURL(url)
-  }
+interface ExportCsvButtonProps {
+  leads: HotLead[]
+  className?: string
+}
 
+export function ExportCsvButton({ leads, className }: ExportCsvButtonProps) {
   return (
     <button
       type="button"
-      onClick={handleClick}
-      className="rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700"
+      onClick={() => exportLeadsToCsv(leads)}
+      className={className ?? 'rounded-[var(--radius-button)] bg-green-600 px-4 py-2 text-white hover:bg-green-700'}
     >
       Export CSV
     </button>

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { Phone, Mail, FileText } from 'lucide-react'
 import type { SavedLead } from '../api/client'
 
 interface SavedLeadCardProps {
@@ -18,11 +19,12 @@ export function SavedLeadCard({ lead, isYou, selected, onToggle }: SavedLeadCard
 
   return (
     <article
-      className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+      className="rounded-[var(--radius-card)] border-default bg-white/90 backdrop-blur-sm p-[var(--space-4)] shadow-[var(--shadow-card)] transition-shadow hover:shadow-[var(--shadow-dropdown)]"
       aria-label={`Lead: ${lead.name}`}
     >
-      <div className="flex flex-col gap-3">
-        <div className="flex items-start justify-between gap-2">
+      <div className="flex flex-col gap-[var(--space-3)]">
+        {/* Header: name + Hot Score / stage badge */}
+        <div className="flex items-start justify-between gap-[var(--space-2)]">
           <input
             type="checkbox"
             checked={selected}
@@ -33,23 +35,60 @@ export function SavedLeadCard({ lead, isYou, selected, onToggle }: SavedLeadCard
           <h3 className="text-base font-semibold leading-tight text-slate-900 flex-1 min-w-0">
             {lead.name}
           </h3>
-          <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700 capitalize shrink-0">
+          <span className="rounded-[var(--radius-button)] border border-[var(--color-primary)]/30 bg-[var(--color-primary)]/10 px-[var(--space-2)] py-[var(--space-1)] text-sm font-bold tabular-nums text-[var(--color-primary)] shrink-0">
+            {(lead as { qualification_score?: number }).qualification_score ?? Number(lead.rating).toFixed(1)}
+          </span>
+          <span className="rounded-[var(--radius-sm)] border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700 capitalize shrink-0">
             {stageLabel(lead.stage)}
           </span>
         </div>
+        {/* Body: 2–3 key metrics */}
         <p className="text-sm text-slate-500">
-          {Number(lead.rating).toFixed(1)} · {lead.review_count} reviews
+          {Number(lead.rating).toFixed(1)} rating · {lead.review_count} reviews
         </p>
         {source !== '—' && (
-          <p className="text-xs text-slate-600">Source: {source}</p>
+          <span className="inline-flex w-fit rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600" aria-label={`Source: ${source}`}>
+            {source}
+          </span>
         )}
         {contact !== '—' && (
           <p className="text-xs text-slate-600 truncate" title={contact}>{contact}</p>
         )}
-        <div className="flex items-center justify-between">
+        {/* Footer: quick actions (Call, Email, Note) + assigned */}
+        <div className="flex flex-wrap items-center justify-between gap-[var(--space-2)] border-t border-slate-100 pt-[var(--space-2)]">
+          <div className="flex items-center gap-[var(--space-1)]">
+            {lead.phone && (
+              <a
+                href={`tel:${lead.phone.replace(/\D/g, '')}`}
+                className="touch-target flex items-center justify-center rounded-[var(--radius-button)] p-[var(--space-2)] text-slate-600 hover:bg-slate-100 hover:text-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2"
+                style={{ minHeight: 'var(--touch-min)', minWidth: 'var(--touch-min)' }}
+                aria-label="Call"
+              >
+                <Phone className="h-5 w-5" aria-hidden />
+              </a>
+            )}
+            {lead.contact_email && (
+              <a
+                href={`mailto:${lead.contact_email}`}
+                className="touch-target flex items-center justify-center rounded-[var(--radius-button)] p-[var(--space-2)] text-slate-600 hover:bg-slate-100 hover:text-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2"
+                style={{ minHeight: 'var(--touch-min)', minWidth: 'var(--touch-min)' }}
+                aria-label="Email"
+              >
+                <Mail className="h-5 w-5" aria-hidden />
+              </a>
+            )}
+            <Link
+              to={`/leads/${lead.id}`}
+              className="touch-target flex items-center justify-center rounded-[var(--radius-button)] p-[var(--space-2)] text-slate-600 hover:bg-slate-100 hover:text-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2"
+              style={{ minHeight: 'var(--touch-min)', minWidth: 'var(--touch-min)' }}
+              aria-label="Note / View detail"
+            >
+              <FileText className="h-5 w-5" aria-hidden />
+            </Link>
+          </div>
           {lead.assigned_to ? (
             <span
-              className={`inline-flex rounded-[8px] px-2 py-0.5 text-xs font-medium ${
+              className={`inline-flex rounded-[var(--radius-button)] px-2 py-0.5 text-xs font-medium ${
                 isYou ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]' : 'bg-slate-100 text-slate-700'
               }`}
             >
@@ -58,13 +97,6 @@ export function SavedLeadCard({ lead, isYou, selected, onToggle }: SavedLeadCard
           ) : (
             <span className="text-slate-400 text-xs">Unassigned</span>
           )}
-          <Link
-            to={`/leads/${lead.id}`}
-            className="text-sm font-medium text-[var(--color-primary)] hover:underline touch-target flex items-center"
-            style={{ minHeight: 'var(--touch-min)' }}
-          >
-            View
-          </Link>
         </div>
       </div>
     </article>

@@ -65,14 +65,14 @@ export function LeadCardGrid({ leads, showSort = true, marketLabel, selectedIds,
   }, [leads, sortBy, order])
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-[var(--space-4)]">
       {showSort && (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-[var(--space-2)]">
           <label className="text-sm text-slate-600">Sort by</label>
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortKey)}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+            className="rounded-[var(--radius-button)] border border-slate-200 bg-white px-[var(--space-3)] py-[var(--space-2)] text-sm shadow-[var(--shadow-soft)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
           >
             {SORT_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -83,14 +83,14 @@ export function LeadCardGrid({ leads, showSort = true, marketLabel, selectedIds,
           <select
             value={order}
             onChange={(e) => setOrder(e.target.value as 'asc' | 'desc')}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+            className="rounded-[var(--radius-button)] border border-slate-200 bg-white px-[var(--space-3)] py-[var(--space-2)] text-sm shadow-[var(--shadow-soft)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
           >
             <option value="desc">Desc</option>
             <option value="asc">Asc</option>
           </select>
         </div>
       )}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-[var(--space-4)] sm:grid-cols-2 lg:grid-cols-3">
         {sortedLeads.map((lead, i) => (
           <LeadCard
             key={lead.place_id || `lead-${i}`}
