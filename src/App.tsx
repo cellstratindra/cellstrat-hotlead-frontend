@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, Link } from 'react-router-dom'
 import { SignIn, SignUp, SignedIn, SignedOut } from '@clerk/clerk-react'
 import { SearchResultsProvider } from './contexts/SearchResultsContext'
 import { FilterDrawerProvider } from './contexts/FilterDrawerContext'
@@ -37,7 +37,19 @@ export default function App() {
         path="/sign-in/*"
         element={
           <PublicRoute>
-            <SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" />
+            <div className="w-full max-w-[400px] mx-auto px-4">
+              <div className="mb-4 rounded-lg border border-[var(--color-primary)]/30 bg-[var(--color-primary)]/5 p-3 text-sm text-slate-700">
+                <p className="font-medium text-[var(--color-navy)] mb-1">First time here?</p>
+                <p className="mb-2">Sign up to create your account with Google; then you can sign in next time.</p>
+                <Link
+                  to="/sign-up"
+                  className="inline-block font-semibold text-[var(--color-primary)] hover:underline focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2 rounded"
+                >
+                  Go to Sign up →
+                </Link>
+              </div>
+              <SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" />
+            </div>
           </PublicRoute>
         }
       />
