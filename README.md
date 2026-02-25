@@ -1,6 +1,6 @@
-# Hot Leads Frontend
+# CellLeads Pro Frontend
 
-React + Vite + Clerk + Tailwind frontend for the Hot Leads platform. Dashboard to search by city and healthcare specialty and view sortable hot leads with CSV export.
+React + Vite + Clerk + Tailwind frontend for the CellLeads Pro platform. Dashboard to search by city and healthcare specialty and view sortable leads with CSV export.
 
 ## Setup
 
@@ -36,4 +36,4 @@ Output is in `dist/`.
 - Set env vars: `VITE_API_URL` (backend production URL), `VITE_CLERK_PUBLISHABLE_KEY`
 - Configure Clerk redirect URLs for your Vercel domain (e.g. `https://your-app.vercel.app`).
 
-This repository is intended to be used as a **standalone Git repository**. Clone or push it to its own remote (e.g. `github.com/yourorg/hotlead-frontend`).
+This repository is intended to be used as a **standalone Git repository**. Clone or push it to its own remote (e.g. `github.com/yourorg/cellleads-pro-frontend`).

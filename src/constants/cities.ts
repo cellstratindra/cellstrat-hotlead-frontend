@@ -15,3 +15,5 @@ export const INDIA_CITIES = [
 ] as const
 
 export const CITY_OTHER = '__other__'
+/** Value for "All cities" (country-level search). */
+export const CITY_ALL = ''

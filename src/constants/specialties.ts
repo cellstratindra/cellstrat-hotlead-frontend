@@ -26,3 +26,5 @@ export const HEALTHCARE_SPECIALTIES = [
 ] as const
 
 export const SPECIALTY_OTHER = '__other__'
+/** Value for "All medical facilities" (specialty-agnostic search). */
+export const SPECIALTY_ALL = ''

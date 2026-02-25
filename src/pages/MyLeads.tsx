@@ -69,7 +69,7 @@ export function MyLeads() {
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
         const a = document.createElement('a')
         a.href = URL.createObjectURL(blob)
-        a.download = 'hot-leads-crm-export.csv'
+        a.download = 'cellleads-pro-crm-export.csv'
         a.click()
         URL.revokeObjectURL(a.href)
       })

@@ -3,7 +3,8 @@ import type { ScoreWeights } from '../api/client'
 import type { HotLead } from '../types/leads'
 import type { SearchChips, SearchFilters } from '../components/SearchBarWithChips'
 
-const STORAGE_KEY = 'hotlead_search'
+const STORAGE_KEY = 'cellleads_pro_search'
+const LEGACY_STORAGE_KEY = 'hotlead_search'
 
 export interface LastSearch {
   leads: HotLead[]
@@ -41,7 +42,15 @@ const SearchResultsContext = createContext<SearchResultsContextValue | null>(nul
 
 function loadPersisted(): { lastSearch: LastSearch | null; searchHistory: SearchHistoryEntry[] } {
   try {
-    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null
+    if (typeof localStorage === 'undefined') return { lastSearch: null, searchHistory: [] }
+    let raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw && localStorage.getItem(LEGACY_STORAGE_KEY)) {
+      raw = localStorage.getItem(LEGACY_STORAGE_KEY)
+      if (raw) {
+        localStorage.setItem(STORAGE_KEY, raw)
+        localStorage.removeItem(LEGACY_STORAGE_KEY)
+      }
+    }
     if (!raw) return { lastSearch: null, searchHistory: [] }
     const data = JSON.parse(raw) as {
       lastSearch?: LastSearch | null

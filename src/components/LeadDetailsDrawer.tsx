@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { HotLead } from '../types/leads'
 import { X } from 'lucide-react'
+import { BottomSheet } from './BottomSheet'
 
 export interface LeadDetailsUpdates {
   contact_email?: string
@@ -79,11 +80,98 @@ export function LeadDetailsDrawer({
 
   if (!open) return null
 
+  const bodyContent = (
+    <div className="p-4">
+      {requireSavedFirst ? (
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">
+            Selected leads are not saved yet. Save them to My Leads first, then you can add contact details from the My Leads page.
+          </p>
+          {message && <p className="text-sm text-red-600">{message}</p>}
+          {onSaveSelectedFirst && (
+            <button
+              type="button"
+              onClick={handleSaveFirst}
+              disabled={savingFirst}
+              className="touch-target w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 min-h-[44px]"
+            >
+              {savingFirst ? 'Saving...' : 'Save selected to My Leads'}
+            </button>
+          )}
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="drawer-email" className="block text-sm font-medium text-slate-700 mb-1">
+              Contact email
+            </label>
+            <input
+              id="drawer-email"
+              type="email"
+              value={contactEmail}
+              onChange={(e) => setContactEmail(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-[#2563EB] focus:outline-none focus:ring-1 focus:ring-[#2563EB]"
+              placeholder="email@example.com"
+            />
+          </div>
+          <div>
+            <label htmlFor="drawer-director" className="block text-sm font-medium text-slate-700 mb-1">
+              Director name
+            </label>
+            <input
+              id="drawer-director"
+              type="text"
+              value={directorName}
+              onChange={(e) => setDirectorName(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-[#2563EB] focus:outline-none focus:ring-1 focus:ring-[#2563EB]"
+              placeholder="Name"
+            />
+          </div>
+          <div>
+            <label htmlFor="drawer-note" className="block text-sm font-medium text-slate-700 mb-1">
+              Note
+            </label>
+            <textarea
+              id="drawer-note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={3}
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-[#2563EB] focus:outline-none focus:ring-1 focus:ring-[#2563EB]"
+              placeholder="Optional note (added to all selected leads)"
+            />
+          </div>
+          {message && <p className="text-sm text-red-600">{message}</p>}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="touch-target flex-1 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 min-h-[44px]"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="touch-target flex-1 rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 min-h-[44px]"
+            >
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  )
+
   return (
     <>
-      <div className="fixed inset-0 z-30 bg-black/40" aria-hidden onClick={onClose} />
+      <div className="fixed inset-0 z-[var(--z-backdrop)] bg-black/40" aria-hidden onClick={onClose} />
+      {/* Mobile: bottom sheet */}
+      <BottomSheet open={open} onClose={onClose} title="Add details" ariaLabel="Add lead details">
+        {bodyContent}
+      </BottomSheet>
+      {/* Desktop: right-side drawer */}
       <aside
-        className="fixed top-0 right-0 z-40 h-full w-full max-w-md bg-white shadow-xl flex flex-col"
+        className="hidden md:flex fixed top-0 right-0 z-[var(--z-drawer)] h-full w-full max-w-md bg-white shadow-xl flex-col"
         role="dialog"
         aria-label="Add lead details"
       >
@@ -92,90 +180,14 @@ export function LeadDetailsDrawer({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+            className="touch-target rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 min-h-[44px] min-w-[44px] flex items-center justify-center"
             aria-label="Close"
           >
             <X size={20} />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-4">
-          {requireSavedFirst ? (
-            <div className="space-y-4">
-              <p className="text-sm text-slate-600">
-                Selected leads are not saved yet. Save them to My Leads first, then you can add contact details from the My Leads page.
-              </p>
-              {message && <p className="text-sm text-red-600">{message}</p>}
-              {onSaveSelectedFirst && (
-                <button
-                  type="button"
-                  onClick={handleSaveFirst}
-                  disabled={savingFirst}
-                  className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {savingFirst ? 'Saving...' : 'Save selected to My Leads'}
-                </button>
-              )}
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="drawer-email" className="block text-sm font-medium text-slate-700 mb-1">
-                  Contact email
-                </label>
-                <input
-                  id="drawer-email"
-                  type="email"
-                  value={contactEmail}
-                  onChange={(e) => setContactEmail(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-[#2563EB] focus:outline-none focus:ring-1 focus:ring-[#2563EB]"
-                  placeholder="email@example.com"
-                />
-              </div>
-              <div>
-                <label htmlFor="drawer-director" className="block text-sm font-medium text-slate-700 mb-1">
-                  Director name
-                </label>
-                <input
-                  id="drawer-director"
-                  type="text"
-                  value={directorName}
-                  onChange={(e) => setDirectorName(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-[#2563EB] focus:outline-none focus:ring-1 focus:ring-[#2563EB]"
-                  placeholder="Name"
-                />
-              </div>
-              <div>
-                <label htmlFor="drawer-note" className="block text-sm font-medium text-slate-700 mb-1">
-                  Note
-                </label>
-                <textarea
-                  id="drawer-note"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  rows={3}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-[#2563EB] focus:outline-none focus:ring-1 focus:ring-[#2563EB]"
-                  placeholder="Optional note (added to all selected leads)"
-                />
-              </div>
-              {message && <p className="text-sm text-red-600">{message}</p>}
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="flex-1 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {saving ? 'Saving...' : 'Save'}
-                </button>
-              </div>
-            </form>
-          )}
+        <div className="flex-1 overflow-y-auto">
+          {bodyContent}
         </div>
       </aside>
     </>

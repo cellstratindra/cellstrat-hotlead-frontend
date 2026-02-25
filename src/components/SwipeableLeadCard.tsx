@@ -4,7 +4,8 @@ import { SavedLeadCard } from './SavedLeadCard'
 import type { SavedLead } from '../api/client'
 
 const SWIPE_THRESHOLD = 80
-const HINT_KEY = 'hotleads_swipe_hint_seen'
+const HINT_KEY = 'cellleads_pro_swipe_hint_seen'
+const LEGACY_HINT_KEY = 'hotleads_swipe_hint_seen'
 
 interface SwipeableLeadCardProps {
   lead: SavedLead
@@ -36,7 +37,16 @@ function SwipeableLeadCardInner({
 
   useEffect(() => {
     if (!showSwipeHint || typeof sessionStorage === 'undefined') return
-    const seen = sessionStorage.getItem(HINT_KEY)
+    let seen = sessionStorage.getItem(HINT_KEY)
+    if (!seen && sessionStorage.getItem(LEGACY_HINT_KEY)) {
+      seen = sessionStorage.getItem(LEGACY_HINT_KEY)
+      try {
+        if (seen) {
+          sessionStorage.setItem(HINT_KEY, seen)
+          sessionStorage.removeItem(LEGACY_HINT_KEY)
+        }
+      } catch { /* ignore */ }
+    }
     if (!seen) setHintVisible(true)
   }, [showSwipeHint])
 

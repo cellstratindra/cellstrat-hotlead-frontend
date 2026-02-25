@@ -14,6 +14,10 @@ export interface HotLead {
   review_count: number
   phone: string
   reviews: ReviewWithFlags[]
+  latitude?: number | null
+  longitude?: number | null
+  address?: string | null
+  place_types?: string[]
   enrichment_summary?: string | null
   outreach_suggestion?: string | null
   top_complaints?: string[]
@@ -36,8 +40,13 @@ export interface HotLead {
   relevance_score?: number | null
   /** Match band for UI: very_similar | similar | far */
   match_band?: string | null
+  /** Static map image URL (when lat/lng present) */
+  static_map_url?: string | null
   contact_email?: string | null
   director_name?: string | null
+  website_url?: string | null
+  owner_source?: string | null
+  owner_confidence?: number | null
 }
 
 export interface SearchResponse {

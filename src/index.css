@@ -1,13 +1,16 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap");
 @import "tailwindcss";
 
 @theme {
-  /* Hot Leads – Mobile-agnostic theme (Deep Navy + Electric Blue) */
+  /* CellLeads Pro – Mobile-agnostic theme (Indigo + Pink accent) */
   --color-bg-base: #0f172a;
   --color-canvas: #f8fafc;
   --color-navy: #1e293b;
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
-  --color-accent: #3b82f6;
+  --color-primary: #4F46E5;
+  --color-primary-hover: #4338ca;
+  --color-primary-light: #EEF2FF;
+  --color-accent: #7C3AED;
+  --color-accent2: #EC4899;
   --color-success: #10b981;
   --color-success-muted: #a7f3d0;
   --color-warning: #f59e0b;
@@ -17,8 +20,13 @@
   --color-coral-muted: #fed7aa;
   --color-emerald: #10b981;
   --color-emerald-muted: #a7f3d0;
+  /* KPI health states */
+  --color-kpi-good: #10b981;
+  --color-kpi-warning: #f59e0b;
+  --color-kpi-danger: #ef4444;
+  --color-kpi-neutral: #4F46E5;
   --color-surface: #ffffff;
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "DM Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
   /* 8px grid spacing */
   --space-1: 4px;
   --space-2: 8px;
@@ -27,20 +35,38 @@
   --space-5: 24px;
   --space-6: 32px;
   --space-8: 48px;
-  /* Radius: 12px cards, 8px buttons */
+  /* Radius: iOS-style larger radii */
   --radius-button: 8px;
-  --radius-card: 12px;
+  --radius-card: 16px;
   --radius-sm: 6px;
   --radius-lg: 16px;
-  /* Borders and shadows (Linear-style) */
+  --radius-xl: 20px;
+  /* Borders and shadows (Apple-style softer) */
   --border-default: 1px solid rgb(226 232 240);
-  --shadow-soft: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  --shadow-soft: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+  --shadow-card: 0 1px 3px rgb(0 0 0 / 0.04), 0 1px 2px rgb(0 0 0 / 0.03);
   --shadow-button: 0 1px 2px 0 rgb(0 0 0 / 0.05), inset 0 1px 0 0 rgb(255 255 255 / 0.1);
-  --shadow-dropdown: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-dropdown: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.06);
+  --shadow-elevated: 0 8px 30px rgb(0 0 0 / 0.08);
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-normal: 200ms ease;
+  --transition-sheet: 300ms ease;
   /* Mobile-first tokens */
   --touch-min: 44px;
   --edge-padding: 16px;
+  /* Standardized form inputs (Slimline Ribbon) */
+  --input-height: 40px;
+  --input-radius: 8px;
+  /* Z-index scale (iOS-style layering) */
+  --z-header: 50;
+  --z-subheader: 49;
+  --z-bottom-nav: 50;
+  --z-backdrop: 100;
+  --z-drawer: 110;
+  --z-modal: 120;
+  --z-popover: 130;
+  --bottom-nav-height: 64px;
 }
 
 body {
@@ -57,9 +83,11 @@ body {
 .safe-area-top {
   padding-top: env(safe-area-inset-top);
 }
+
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom);
 }
+
 .safe-area-insets {
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
@@ -70,13 +98,28 @@ body {
   min-height: var(--touch-min);
   min-width: var(--touch-min);
 }
+
+.touch-target {
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
 .touch-target:active {
-  opacity: 0.85;
+  opacity: 0.9;
+  transform: scale(0.98);
 }
 
 /* Token-based border for cards/panels */
 .border-default {
   border: var(--border-default);
+}
+
+/* Standardized input height and radius for forms */
+.input-standard {
+  height: var(--input-height);
+  border-radius: var(--input-radius);
+  font-size: 14px;
+  padding-left: 12px;
+  padding-right: 12px;
 }
 
 /* Dark mode: semantic overrides so components stay mobile-agnostic */
@@ -87,9 +130,11 @@ body {
     --color-bg-base: #020617;
     --color-surface: #1e293b;
   }
+
   .border-default {
     border-color: rgb(51 65 85);
   }
+
   body {
     background-color: var(--color-canvas);
   }

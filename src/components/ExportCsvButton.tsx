@@ -1,3 +1,4 @@
+import { Download } from 'lucide-react'
 import type { HotLead } from '../types/leads'
 
 function escapeCsvCell(s: string): string {
@@ -38,7 +39,7 @@ export function exportLeadsToCsv(leads: HotLead[]): void {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = 'hot-leads.csv'
+  a.download = 'cellleads-pro.csv'
   a.click()
   URL.revokeObjectURL(url)
 }
@@ -46,16 +47,21 @@ export function exportLeadsToCsv(leads: HotLead[]): void {
 interface ExportCsvButtonProps {
   leads: HotLead[]
   className?: string
+  /** When true, show only the download icon (e.g. in toolbar kebab menu) */
+  iconOnly?: boolean
 }
 
-export function ExportCsvButton({ leads, className }: ExportCsvButtonProps) {
+export function ExportCsvButton({ leads, className, iconOnly = false }: ExportCsvButtonProps) {
   return (
     <button
       type="button"
       onClick={() => exportLeadsToCsv(leads)}
-      className={className ?? 'rounded-[var(--radius-button)] bg-green-600 px-4 py-2 text-white hover:bg-green-700'}
+      className={className ?? 'rounded-[var(--radius-button)] bg-green-600 px-4 py-2 text-white hover:bg-green-700 inline-flex items-center gap-2'}
+      aria-label="Export CSV"
+      title="Export CSV"
     >
-      Export CSV
+      <Download className="h-4 w-4 shrink-0" aria-hidden />
+      {!iconOnly && <span>Export CSV</span>}
     </button>
   )
 }

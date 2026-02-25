@@ -179,14 +179,15 @@ export function CampaignDrawer({ open, onClose, leads }: CampaignDrawerProps) {
   return (
     <>
       <div
-        className="fixed inset-0 z-40 bg-black/40"
+        className="fixed inset-0 z-[var(--z-backdrop)] bg-black/40"
         aria-hidden
         onClick={onClose}
       />
       <aside
-        className="fixed inset-0 md:inset-auto md:top-0 md:right-0 z-50 h-full w-full md:max-w-4xl bg-white shadow-[var(--shadow-dropdown)] flex flex-col md:rounded-l-[var(--radius-button)] overflow-hidden"
+        className="fixed inset-x-0 bottom-0 top-auto max-h-[85vh] md:inset-auto md:top-0 md:right-0 md:max-h-none z-[var(--z-drawer)] w-full md:max-w-4xl md:h-full bg-white shadow-[var(--shadow-elevated)] flex flex-col rounded-t-[var(--radius-xl)] md:rounded-l-[var(--radius-button)] md:rounded-tr-none overflow-hidden"
         role="dialog"
         aria-label="Generate Campaign"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="flex items-center justify-between gap-[var(--space-2)] border-b border-slate-200 px-[var(--space-4)] py-[var(--space-3)] bg-[var(--color-navy)]">
           <div className="flex items-center gap-[var(--space-2)] min-w-0">

@@ -22,7 +22,7 @@ describe('AppLayout', () => {
         </HeaderActionsProvider>
       </MemoryRouter>
     )
-    const dashboardLinks = screen.getAllByRole('link', { name: /dashboard|hot leads home/i })
+    const dashboardLinks = screen.getAllByRole('link', { name: /dashboard|cellleads pro home/i })
     expect(dashboardLinks.length).toBeGreaterThanOrEqual(1)
     const myLeadsLinks = screen.getAllByRole('link', { name: /my leads/i })
     expect(myLeadsLinks.length).toBeGreaterThanOrEqual(1)

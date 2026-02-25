@@ -11,9 +11,8 @@ This app is a **Single Page Application (SPA)**. Routes like `/dashboard`, `/my-
 
 ## Deploy steps (required)
 
-1. **From this directory** (`hotlead-frontend`):
+1. **From this directory** (the frontend app folder):
    ```bash
-   cd hotlead-frontend
    npm run build
    firebase deploy
    ```
@@ -25,8 +24,8 @@ This app is a **Single Page Application (SPA)**. Routes like `/dashboard`, `/my-
 2. **Always run `npm run build` before deploy.**  
    If you deploy without building, or from the wrong folder, `dist/` may be missing or stale and Firebase may serve a 404 for deep links.
 
-3. **Run Firebase from `hotlead-frontend`.**  
-   If you run `firebase deploy` from the repo root, Firebase may use a different or missing config; the rewrite rule lives in `hotlead-frontend/firebase.json`.
+3. **Run Firebase from this directory.**  
+   If you run `firebase deploy` from the repo root, Firebase may use a different or missing config; the rewrite rule lives in this folder's `firebase.json`.
 
 ## After deploy
 

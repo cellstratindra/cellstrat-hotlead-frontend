@@ -1,8 +1,8 @@
 /**
- * Hot Leads by Cellstrat – logo mark + wordmark.
+ * CellLeads Pro by Cellstrat – logo mark + wordmark.
  * Uses theme variables for mobile-agnostic colors.
  */
-interface HotLeadsLogoProps {
+interface CellLeadsLogoProps {
   /** Compact: icon only (e.g. narrow mobile header) */
   iconOnly?: boolean
   /** Size of the mark; affects overall scale */
@@ -16,31 +16,31 @@ const sizes = {
   lg: { mark: 32, text: 'text-xl', by: 'text-sm' },
 } as const
 
-export function HotLeadsLogo({ iconOnly = false, size = 'md', className = '' }: HotLeadsLogoProps) {
+export function CellLeadsLogo({ iconOnly = false, size = 'md', className = '' }: CellLeadsLogoProps) {
   const { mark: markSize, text, by } = sizes[size]
 
   const mark = (
     <svg
       width={markSize}
       height={markSize}
-      viewBox="0 0 24 24"
+      viewBox="0 0 28 28"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden
       className="shrink-0"
     >
-      {/* Flame: hot leads */}
-      <path
-        d="M12 2C10 5 7 8 7 13c0 3 2 5 5 5s5-2 5-5c0-5-3-8-5-11z"
-        fill="currentColor"
-        style={{ color: 'var(--color-primary)' }}
-      />
+      <rect width={28} height={28} rx={8} fill="var(--color-primary)" />
+      <circle cx={14} cy={14} r={5} fill="white" />
+      <circle cx={7} cy={10} r={2.5} fill="rgba(255,255,255,.5)" />
+      <circle cx={21} cy={10} r={2.5} fill="rgba(255,255,255,.5)" />
+      <circle cx={10} cy={21} r={2.5} fill="rgba(255,255,255,.5)" />
+      <circle cx={18} cy={21} r={2.5} fill="rgba(255,255,255,.5)" />
     </svg>
   )
 
   if (iconOnly) {
     return (
-      <span className={`inline-flex items-center justify-center ${className}`} aria-label="Hot Leads by Cellstrat">
+      <span className={`inline-flex items-center justify-center ${className}`} aria-label="CellLeads Pro by Cellstrat">
         {mark}
       </span>
     )
@@ -49,12 +49,12 @@ export function HotLeadsLogo({ iconOnly = false, size = 'md', className = '' }: 
   return (
     <span
       className={`inline-flex items-center gap-[var(--space-2)] ${className}`}
-      aria-label="Hot Leads by Cellstrat"
+      aria-label="CellLeads Pro by Cellstrat"
     >
       {mark}
       <span className="flex flex-col leading-tight">
-        <span className={`font-bold text-[var(--color-navy)] ${text}`}>
-          Hot Leads
+        <span className={`font-extrabold text-[var(--color-navy)] ${text}`} style={{ fontFamily: '"Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif' }}>
+          CellLeads<span className="text-[var(--color-accent2)]">.</span>
         </span>
         <span className={`font-normal text-slate-500 ${by}`}>
           by Cellstrat

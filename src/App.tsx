@@ -4,12 +4,12 @@ import { SignIn, SignUp, SignedIn, SignedOut } from '@clerk/clerk-react'
 import { SearchResultsProvider } from './contexts/SearchResultsContext'
 import { FilterDrawerProvider } from './contexts/FilterDrawerContext'
 import { HeaderActionsProvider } from './contexts/HeaderActionsContext'
+import { GeoProvider } from './contexts/GeoContext'
 import { AppLayout } from './components/AppLayout'
 
 const Dashboard = lazy(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })))
 const MyLeads = lazy(() => import('./pages/MyLeads').then((m) => ({ default: m.MyLeads })))
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })))
-const Coverage = lazy(() => import('./pages/Coverage').then((m) => ({ default: m.Coverage })))
 const LeadDetailPage = lazy(() => import('./pages/LeadDetail').then((m) => ({ default: m.LeadDetailPage })))
 const LeadLifecycleDashboard = lazy(() => import('./pages/LeadLifecycleDashboard').then((m) => ({ default: m.LeadLifecycleDashboard })))
 const ProductBacklog = lazy(() => import('./pages/ProductBacklog').then((m) => ({ default: m.ProductBacklog })))
@@ -66,11 +66,13 @@ export default function App() {
           <>
             <SignedIn>
               <SearchResultsProvider>
-                <FilterDrawerProvider>
-                  <HeaderActionsProvider>
-                    <AppLayout />
-                  </HeaderActionsProvider>
-                </FilterDrawerProvider>
+                <GeoProvider>
+                  <FilterDrawerProvider>
+                    <HeaderActionsProvider>
+                      <AppLayout />
+                    </HeaderActionsProvider>
+                  </FilterDrawerProvider>
+                </GeoProvider>
               </SearchResultsProvider>
             </SignedIn>
             <SignedOut>
@@ -82,7 +84,6 @@ export default function App() {
         <Route path="/dashboard" element={<Suspense fallback={<PageFallback />}><Dashboard /></Suspense>} />
         <Route path="/lifecycle" element={<Suspense fallback={<PageFallback />}><LeadLifecycleDashboard /></Suspense>} />
         <Route path="/my-leads" element={<Suspense fallback={<PageFallback />}><MyLeads /></Suspense>} />
-        <Route path="/coverage" element={<Suspense fallback={<PageFallback />}><Coverage /></Suspense>} />
         <Route path="/product-backlog" element={<Suspense fallback={<PageFallback />}><ProductBacklog /></Suspense>} />
         <Route path="/settings" element={<Suspense fallback={<PageFallback />}><Settings /></Suspense>} />
         <Route path="/leads/:id" element={<Suspense fallback={<PageFallback />}><LeadDetailPage /></Suspense>} />

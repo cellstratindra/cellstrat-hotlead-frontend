@@ -333,7 +333,7 @@ export function ReviewsModal({ lead, open, onClose, onSummaryGenerated }: Review
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4 bg-black/50"
+      className="fixed inset-0 z-[var(--z-modal)] flex items-end md:items-center justify-center p-0 md:p-4 bg-black/50"
       onClick={onClose}
       role="dialog"
       aria-modal="true"

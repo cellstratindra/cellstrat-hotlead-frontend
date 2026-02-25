@@ -71,6 +71,14 @@ function normalizeLead(raw: Record<string, unknown>): HotLead {
     id: raw?.id != null ? Number(raw.id) : null,
     contact_email: raw?.contact_email != null ? String(raw.contact_email) : null,
     director_name: raw?.director_name != null ? String(raw.director_name) : null,
+    latitude: raw?.latitude != null ? Number(raw.latitude) : null,
+    longitude: raw?.longitude != null ? Number(raw.longitude) : null,
+    address: raw?.address != null ? String(raw.address) : null,
+    place_types: Array.isArray(raw?.place_types) ? (raw.place_types as string[]) : undefined,
+    static_map_url: raw?.static_map_url != null ? String(raw.static_map_url) : null,
+    website_url: raw?.website_url != null ? String(raw.website_url) : null,
+    owner_source: raw?.owner_source != null ? String(raw.owner_source) : null,
+    owner_confidence: raw?.owner_confidence != null ? Number(raw.owner_confidence) : null,
   }
 }
 
@@ -248,6 +256,10 @@ export interface SavedLead {
   review_count: number
   phone: string
   reviews: { text: string; flagged_keywords: string[]; rating?: number | null; time?: number | null; relative_time_description?: string | null }[]
+  latitude?: number | null
+  longitude?: number | null
+  address?: string | null
+  place_types?: string[]
   enrichment_summary?: string | null
   outreach_suggestion?: string | null
   top_complaints?: string[]
@@ -313,6 +325,11 @@ function normalizeSavedLead(raw: Record<string, unknown>): SavedLead {
     contact_email: raw?.contact_email != null ? String(raw.contact_email) : null,
     director_name: raw?.director_name != null ? String(raw.director_name) : null,
     assigned_to: raw?.assigned_to != null ? String(raw.assigned_to) : null,
+    latitude: raw?.latitude != null ? Number(raw.latitude) : null,
+    longitude: raw?.longitude != null ? Number(raw.longitude) : null,
+    address: raw?.address != null ? String(raw.address) : null,
+    place_types: Array.isArray(raw?.place_types) ? (raw.place_types as string[]) : undefined,
+    static_map_url: raw?.static_map_url != null ? String(raw.static_map_url) : null,
   }
 }
 
@@ -400,6 +417,26 @@ export async function getLead(id: number): Promise<LeadDetail> {
   const notes = Array.isArray(raw?.notes) ? raw.notes as { id: number; content: string; created_at: string }[] : []
   const stage_history = Array.isArray(raw?.stage_history) ? raw.stage_history as { stage: string; created_at: string }[] : []
   return { ...lead, notes, stage_history }
+}
+
+export interface OwnerResult {
+  name: string
+  role?: string | null
+  confidence: number
+  source_url?: string | null
+}
+
+export async function discoverOwner(leadId: number): Promise<OwnerResult | null> {
+  const res = await fetch(`${API_BASE}/api/leads/${leadId}/discover-owner`, { method: 'POST' })
+  if (!res.ok) throw new Error('Owner discovery failed')
+  const data = (await res.json()) as OwnerResult | null
+  return data
+}
+
+export async function getOwnerSearchUrl(leadId: number): Promise<{ url: string }> {
+  const res = await fetch(`${API_BASE}/api/leads/${leadId}/owner-search-url`)
+  if (!res.ok) throw new Error('Failed to get search URL')
+  return res.json() as Promise<{ url: string }>
 }
 
 export async function addNote(leadId: number, content: string, userId?: string | null): Promise<void> {
@@ -633,13 +670,24 @@ export interface ScoreWeights {
 }
 
 export interface SearchParams {
-  city: string
-  specialty: string
+  /** When omitted or empty, backend uses country for broad search. */
+  city?: string
+  /** Country for country-level search when city is omitted (e.g. "India"). */
+  country?: string
+  /** When omitted or empty, backend searches all medical facilities (entity-level queries). */
+  specialty?: string
   region?: string
   /** Optional: search by clinic/business name; bypasses underperformer filter */
   place_query?: string
   /** Optional: natural-language search; parsed by backend to structured params */
   nl_query?: string
+  /** Optional: radius search center (geocoded by backend when center_lat/lng not provided) */
+  center_place?: string
+  /** Optional: radius center as coordinates (backend uses these when set, so "Current location" works without geocoding) */
+  center_lat?: number
+  center_lng?: number
+  /** Optional: radius in km (1-50) */
+  radius_km?: number
   sort_by?: string
   order?: string
   min_rating?: number
@@ -663,13 +711,128 @@ export async function explainScore(lead: HotLead): Promise<{ explanation: string
   return { explanation: data?.explanation ?? '' }
 }
 
+export interface DistanceDestination {
+  place_id: string
+  latitude: number
+  longitude: number
+}
+
+export interface DistanceResult {
+  place_id: string
+  distance_text: string
+  duration_text: string
+  duration_seconds: number
+}
+
+export async function geocodeAddress(address: string): Promise<{ lat: number; lng: number }> {
+  const res = await fetch(
+    `${API_BASE}/api/leads/geocode?${new URLSearchParams({ address: address.trim() })}`
+  )
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }))
+    throw new Error(typeof err?.detail === 'string' ? err.detail : 'Geocoding failed')
+  }
+  const data = (await res.json()) as { lat?: number; lng?: number }
+  if (data?.lat == null || data?.lng == null) throw new Error('Invalid geocode response')
+  return { lat: data.lat, lng: data.lng }
+}
+
+/** Reverse geocode (lat, lng) to a short place name for display when location is detected. */
+export async function reverseGeocode(lat: number, lng: number): Promise<{ name: string }> {
+  const res = await fetch(
+    `${API_BASE}/api/leads/reverse-geocode?${new URLSearchParams({ lat: String(lat), lng: String(lng) })}`
+  )
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }))
+    throw new Error(typeof err?.detail === 'string' ? err.detail : 'Could not get location name')
+  }
+  const data = (await res.json()) as { name?: string }
+  if (typeof data?.name !== 'string') throw new Error('Invalid reverse geocode response')
+  return { name: data.name }
+}
+
+export async function fetchDistances(
+  originLat: number,
+  originLng: number,
+  destinations: DistanceDestination[]
+): Promise<DistanceResult[]> {
+  if (destinations.length === 0) return []
+  const res = await fetch(`${API_BASE}/api/leads/distances`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      origin_lat: originLat,
+      origin_lng: originLng,
+      destinations,
+    }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }))
+    throw new Error(typeof err?.detail === 'string' ? err.detail : 'Distance lookup failed')
+  }
+  const data = (await res.json()) as { results?: DistanceResult[] }
+  return Array.isArray(data?.results) ? data.results : []
+}
+
+export interface NearbyResult {
+  lead: HotLead
+  similarity_score: number
+  distance_text?: string | null
+}
+
+export interface NearbyResponse {
+  anchor: HotLead
+  nearby: NearbyResult[]
+}
+
+export async function fetchNearby(
+  anchorPlaceId: string,
+  latitude: number,
+  longitude: number,
+  radiusKm: number = 5,
+  specialty?: string | null
+): Promise<NearbyResponse> {
+  const res = await fetch(`${API_BASE}/api/leads/nearby`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      anchor_place_id: anchorPlaceId,
+      latitude,
+      longitude,
+      radius_km: radiusKm,
+      specialty: specialty ?? null,
+      anchor_types: [],
+    }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }))
+    throw new Error(typeof err?.detail === 'string' ? err.detail : 'Nearby search failed')
+  }
+  const data = (await res.json()) as { anchor?: unknown; nearby?: unknown[] }
+  const anchor = data?.anchor != null ? normalizeLead(data.anchor as Record<string, unknown>) : null
+  const nearby = Array.isArray(data?.nearby)
+    ? (data.nearby as { lead?: unknown; similarity_score?: number; distance_text?: string | null }[]).map((n) => ({
+        lead: normalizeLead((n.lead ?? {}) as Record<string, unknown>),
+        similarity_score: Number(n.similarity_score ?? 0),
+        distance_text: n.distance_text ?? null,
+      }))
+    : []
+  if (!anchor) throw new Error('Invalid nearby response')
+  return { anchor, nearby }
+}
+
 export async function searchLeads(params: SearchParams): Promise<SearchResponse> {
   const body: Record<string, unknown> = {
-    city: params.city.trim().toLowerCase(),
-    specialty: params.specialty.trim().toLowerCase(),
+    city: params.city?.trim() || null,
+    country: params.country?.trim() || null,
+    specialty: params.specialty?.trim() ? params.specialty.trim().toLowerCase() : null,
     region: params.region?.trim() ? params.region.trim().toLowerCase() : null,
     place_query: params.place_query?.trim() || null,
     nl_query: params.nl_query?.trim() || null,
+    center_place: params.center_place?.trim() || null,
+    center_lat: params.center_lat ?? null,
+    center_lng: params.center_lng ?? null,
+    radius_km: params.radius_km ?? null,
     sort_by: params.sort_by || null,
     order: params.order || null,
     min_rating: params.min_rating ?? null,

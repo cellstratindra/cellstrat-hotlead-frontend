@@ -11,7 +11,7 @@ function Root() {
   if (!publishableKey.trim()) {
     return (
       <div style={{ padding: '2rem', fontFamily: 'system-ui', maxWidth: '480px' }}>
-        <h1 style={{ marginBottom: '1rem' }}>Hot Leads</h1>
+        <h1 style={{ marginBottom: '1rem' }}>CellLeads Pro</h1>
         <p style={{ color: '#666', marginBottom: '1rem' }}>
           Add <code>VITE_CLERK_PUBLISHABLE_KEY</code> to your <code>.env</code> or <code>.env.local</code> and restart the dev server.
         </p>

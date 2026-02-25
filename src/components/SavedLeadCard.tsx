@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import { Link } from 'react-router-dom'
-import { Phone, Mail, FileText } from 'lucide-react'
+import { Phone, Mail, FileText, MapPin } from 'lucide-react'
 import type { SavedLead } from '../api/client'
 
 interface SavedLeadCardProps {
@@ -57,6 +57,18 @@ function SavedLeadCardInner({ lead, isYou, assignedToLabel, selected, onToggle }
         )}
         {contact !== '—' && (
           <p className="text-xs text-slate-600 truncate" title={contact}>{contact}</p>
+        )}
+        {lead.latitude != null && lead.longitude != null && (
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${lead.latitude},${lead.longitude}`)}${lead.place_id ? `&query_place_id=${encodeURIComponent(lead.place_id)}` : ''}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs text-[var(--color-primary)] hover:underline"
+            aria-label="Open location in Maps"
+          >
+            <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span>View on map</span>
+          </a>
         )}
         {/* Footer: quick actions (Call, Email, Note) + assigned */}
         <div className="flex flex-wrap items-center justify-between gap-[var(--space-2)] border-t border-slate-100 pt-[var(--space-2)]">

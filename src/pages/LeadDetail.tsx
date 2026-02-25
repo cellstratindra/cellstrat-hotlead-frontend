@@ -5,10 +5,12 @@ import {
   addNote,
   addFeatureOccurrence,
   createMeeting,
+  discoverOwner,
   fetchBenchmark,
   fetchReviewInsights,
   fetchReviewSummary,
   getLead,
+  getOwnerSearchUrl,
   listFeatureOccurrences,
   listMeetings,
   updateLeadStage,
@@ -18,6 +20,7 @@ import {
 import type { FeatureOccurrence, ReviewInsightsResponse } from '../types/leads'
 import { sortReviews, type ReviewSortOption } from '../components/ReviewsModal'
 import { PrecallBriefModal } from '../components/PrecallBriefModal'
+import { MapPreview } from '../components/MapPreview'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 
 const STAGES = ['new', 'contacted', 'meeting_booked', 'qualified', 'nurtured']
@@ -55,6 +58,8 @@ export function LeadDetailPage() {
   const [trackingNoteContent, setTrackingNoteContent] = useState('')
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const [trackingNoteSaving, setTrackingNoteSaving] = useState(false)
+  const [ownerLoading, setOwnerLoading] = useState(false)
+  const [ownerAttempted, setOwnerAttempted] = useState(false)
   const trackingNoteDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { user } = useUser()
 
@@ -78,6 +83,28 @@ export function LeadDetailPage() {
       .catch(() => { if (!cancelled) setBenchmark(null) })
     return () => { cancelled = true }
   }, [lead?.place_id, lead?.source_city, lead?.source_specialty, lead?.source_region])
+
+  const prevLeadIdRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (lead?.id !== prevLeadIdRef.current) {
+      prevLeadIdRef.current = lead?.id ?? null
+      setOwnerAttempted(false)
+    }
+  }, [lead?.id])
+
+  useEffect(() => {
+    if (!lead?.id || lead.director_name != null || ownerAttempted) return
+    setOwnerAttempted(true)
+    setOwnerLoading(true)
+    discoverOwner(lead.id)
+      .then((result) => {
+        if (result) {
+          getLead(lead.id).then((updated) => setLead(updated))
+        }
+      })
+      .catch(() => {})
+      .finally(() => setOwnerLoading(false))
+  }, [lead?.id, lead?.director_name, ownerAttempted])
 
   async function handleAddNote(e: React.FormEvent) {
     e.preventDefault()
@@ -125,6 +152,12 @@ export function LeadDetailPage() {
   const hasReviewText = reviews.length > 0 && reviews.some((r) => (r.text ?? '').trim())
   const sortedReviews = useMemo(() => sortReviews(reviews, reviewSort), [reviews, reviewSort])
   const displaySummary = (lead as { reviews_summary?: string | null })?.reviews_summary ?? reviewsSummaryLocal
+
+  async function handleVerifyOwner() {
+    if (!lead?.id) return
+    const { url } = await getOwnerSearchUrl(lead.id)
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
 
   const communicationTimeline = useMemo(() => {
     if (!lead) return []
@@ -268,6 +301,43 @@ export function LeadDetailPage() {
         )}
         {isMobile && mobileTab === 'insights' && (
           <div className="space-y-4">
+            <MapPreview
+              staticMapUrl={lead.static_map_url ?? null}
+              name={lead.name}
+              placeId={lead.place_id}
+              latitude={lead.latitude ?? null}
+              longitude={lead.longitude ?? null}
+              fullWidthOnMobile
+            />
+            <div className="rounded border border-slate-200 bg-white p-4">
+              <h2 className="mb-2 font-semibold text-[var(--color-navy)]">Ownership Intelligence</h2>
+              {ownerLoading && (
+                <p className="text-sm text-slate-500 animate-pulse">Searching…</p>
+              )}
+              {!ownerLoading && lead.director_name && (
+                <div className="text-sm text-slate-700">
+                  <p className="font-medium">Possible Owner: {lead.director_name}</p>
+                  {lead.owner_confidence != null && (
+                    <span className="inline-block mt-1 rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                      {Math.round(lead.owner_confidence * 100)}% confidence
+                    </span>
+                  )}
+                  {lead.owner_source && (
+                    <a href={lead.owner_source} target="_blank" rel="noopener noreferrer" className="ml-2 text-[var(--color-primary)] hover:underline text-xs">
+                      Source
+                    </a>
+                  )}
+                </div>
+              )}
+              {!ownerLoading && !lead.director_name && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-600">Owner unknown</span>
+                  <button type="button" onClick={handleVerifyOwner} className="rounded border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                    Verify Owner
+                  </button>
+                </div>
+              )}
+            </div>
             {(lead.enrichment_summary || lead.outreach_suggestion) && (
               <div className="relative overflow-hidden rounded-xl border border-white/40 bg-white/60 p-4 shadow-sm backdrop-blur-md">
                 <span className="inline-block rounded-full bg-[var(--color-primary)]/10 px-2 py-0.5 text-xs font-medium text-[var(--color-primary)]">AI-Generated</span>
@@ -365,6 +435,38 @@ export function LeadDetailPage() {
             <p><span className="font-medium text-gray-700">Est. monthly patients:</span> {lead.estimated_monthly_patients.toLocaleString()}</p>
           )}
           <p><span className="font-medium text-gray-700">Phone:</span> {lead.phone || '—'}</p>
+          {lead.address && <p><span className="font-medium text-gray-700">Address:</span> {lead.address}</p>}
+          <div className="mt-2">
+            <MapPreview
+              staticMapUrl={lead.static_map_url ?? null}
+              name={lead.name}
+              placeId={lead.place_id}
+              latitude={lead.latitude ?? null}
+              longitude={lead.longitude ?? null}
+              fullWidthOnMobile={false}
+            />
+          </div>
+          <div className="mt-4 rounded border border-slate-200 bg-slate-50/50 p-3">
+            <h3 className="text-sm font-semibold text-[var(--color-navy)] mb-2">Ownership Intelligence</h3>
+            {ownerLoading && <p className="text-sm text-slate-500 animate-pulse">Searching…</p>}
+            {!ownerLoading && lead.director_name && (
+              <div className="text-sm text-slate-700">
+                <p className="font-medium">Possible Owner: {lead.director_name}</p>
+                {lead.owner_confidence != null && (
+                  <span className="inline-block mt-1 rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{Math.round(lead.owner_confidence * 100)}% confidence</span>
+                )}
+                {lead.owner_source && (
+                  <a href={lead.owner_source} target="_blank" rel="noopener noreferrer" className="ml-2 text-[var(--color-primary)] hover:underline text-xs">Source</a>
+                )}
+              </div>
+            )}
+            {!ownerLoading && !lead.director_name && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-600">Owner unknown</span>
+                <button type="button" onClick={handleVerifyOwner} className="rounded border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">Verify Owner</button>
+              </div>
+            )}
+          </div>
           <p><span className="font-medium text-gray-700">Stage:</span>
             <select
               value={lead.stage}

@@ -22,12 +22,12 @@ export function PrecallBriefModal({
   return (
     <>
       <div
-        className="fixed inset-0 z-40 bg-black/40"
+        className="fixed inset-0 z-[var(--z-backdrop)] bg-black/40"
         aria-hidden
         onClick={onClose}
       />
       <div
-        className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white shadow-xl"
+        className="fixed left-1/2 top-1/2 z-[var(--z-modal)] w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white shadow-xl"
         role="dialog"
         aria-label="Pre-call brief"
       >
