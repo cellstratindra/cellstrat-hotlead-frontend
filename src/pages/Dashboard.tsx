@@ -87,7 +87,7 @@ export function Dashboard() {
   const actionsMenuRef = useRef<HTMLDivElement>(null);
   const filterDrawer = useFilterDrawer();
   const headerActions = useHeaderActions();
-  const { basePoint, setDistanceMap, setBasePoint, markLocationJustDetected, locationDetectedAt, locationMode, setLocationMode } = useGeo();
+  const { basePoint, setDistanceMap, setBasePoint, clearBasePoint, markLocationJustDetected, locationDetectedAt } = useGeo();
   const filterDrawerOpen = filterDrawer?.open ?? false;
   const setFilterDrawerOpen = filterDrawer ? (open: boolean) => (open ? filterDrawer.openDrawer() : filterDrawer.closeDrawer()) : () => { };
   const [proximityView, setProximityView] = useState<{ anchor: HotLead; nearby: NearbyResponse['nearby']; radiusKm: number } | null>(null);
@@ -98,6 +98,7 @@ export function Dashboard() {
   const [savedPlaceIds, setSavedPlaceIds] = useState<Set<string>>(new Set());
   const [mapExpanded, setMapExpanded] = useState(true); // default open on mobile so location + nearby pins are visible
   const [mapSelectedLead, setMapSelectedLead] = useState<HotLead | null>(null);
+  const [broadSearchBanner, setBroadSearchBanner] = useState<{ limit: number } | null>(null);
   const mapExpandedRef = useRef(mapExpanded);
   mapExpandedRef.current = mapExpanded;
   const savedMapState = useRef<boolean | null>(null);
@@ -339,9 +340,15 @@ export function Dashboard() {
       setLeads(res.leads);
       setMarketReport(null);
       saveSearch({ leads: res.leads, searchChips: chips, filters, scoreWeights });
+      setBroadSearchBanner(
+        res.results_limited_broad_search && res.results_limit_applied
+          ? { limit: res.results_limit_applied }
+          : null
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Search failed');
       setLeads([]);
+      setBroadSearchBanner(null);
     } finally {
       setLoading(false);
     }
@@ -489,6 +496,48 @@ export function Dashboard() {
 
   const marketLabel = [searchChips.specialty, searchChips.city || searchChips.country].filter(Boolean).join(' in ') || null;
 
+  const defaultFilters = lastSearch?.filters ?? { sort_by: 'recommendation_score', order: 'desc', min_rating: '', min_review_count: '', has_phone: false, budget_max: '' } as SearchFilters;
+  const activeFilterChips: ActiveFilterChip[] = [];
+  if (searchChips.center_place?.trim() && searchChips.radius_km != null) {
+    activeFilterChips.push({ id: 'location', label: `${searchChips.center_place.trim()}, ${searchChips.radius_km} km`, icon: 'location' });
+  } else if (searchChips.city?.trim()) {
+    activeFilterChips.push({ id: 'city', label: searchChips.city.trim(), icon: 'location' });
+  }
+  if (searchChips.specialty && searchChips.specialty !== 'All medical facilities') {
+    activeFilterChips.push({ id: 'specialty', label: `Specialty: ${searchChips.specialty}`, icon: 'specialty' });
+  }
+  if (defaultFilters.min_rating) {
+    activeFilterChips.push({ id: 'rating', label: `Rating ${defaultFilters.min_rating}+`, icon: 'rating' });
+  }
+  if (searchChips.place_query?.trim()) {
+    const q = searchChips.place_query.trim();
+    activeFilterChips.push({ id: 'place', label: q.length > 20 ? `${q.slice(0, 20)}…` : q, icon: 'place' });
+  }
+  const onRemoveFilterChip = (id: string) => {
+    if (id === 'location') {
+      clearBasePoint();
+      handleSearch(
+        { ...searchChips, center_place: undefined, center_lat: undefined, center_lng: undefined, radius_km: undefined },
+        defaultFilters
+      );
+    } else if (id === 'city') {
+      handleSearch({ ...searchChips, city: undefined }, defaultFilters);
+    } else if (id === 'specialty') {
+      handleSearch({ ...searchChips, specialty: undefined }, defaultFilters);
+    } else if (id === 'rating') {
+      handleSearch(searchChips, { ...defaultFilters, min_rating: '' });
+    } else if (id === 'place') {
+      handleSearch({ ...searchChips, place_query: undefined }, defaultFilters);
+    }
+  };
+  const onClearAllFilterChips = () => {
+    clearBasePoint();
+    handleSearch(
+      { city: undefined, country: 'India', region: searchChips.region || 'India', specialty: undefined, center_place: undefined, center_lat: undefined, center_lng: undefined, radius_km: undefined, place_query: undefined },
+      defaultFilters
+    );
+  };
+
   return (
     <div className="bg-[var(--color-canvas)] min-h-full font-[family-name:var(--font-sans)] flex flex-col">
       {/* Sub-Header Toolbar: desktop only; on mobile we use header filter + Actions FAB */}
@@ -521,6 +570,9 @@ export function Dashboard() {
           searchLoading={loading}
           searchChips={searchChips}
           searchFilters={lastSearch?.filters ?? undefined}
+          activeFilterChips={activeFilterChips}
+          onRemoveFilterChip={onRemoveFilterChip}
+          onClearAllFilterChips={onClearAllFilterChips}
         />
       </div>
       {/* Mobile: floating Actions button (replaces fixed toolbar) */}
@@ -550,39 +602,15 @@ export function Dashboard() {
           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
         </button>
       </div>
-      {(() => {
-        const defaultFilters = lastSearch?.filters ?? { sort_by: 'recommendation_score', order: 'desc', min_rating: '', min_review_count: '', has_phone: false, budget_max: '' } as SearchFilters;
-        const chips: ActiveFilterChip[] = [];
-        if (searchChips.center_place?.trim() && searchChips.radius_km != null) {
-          chips.push({ id: 'location', label: `${searchChips.center_place.trim()}, ${searchChips.radius_km} km`, icon: 'location' });
-        }
-        if (searchChips.specialty && searchChips.specialty !== 'All medical facilities') {
-          chips.push({ id: 'specialty', label: `Specialty: ${searchChips.specialty}`, icon: 'specialty' });
-        }
-        if (defaultFilters.min_rating) {
-          chips.push({ id: 'rating', label: `Rating ${defaultFilters.min_rating}+`, icon: 'rating' });
-        }
-        if (searchChips.place_query?.trim()) {
-          const q = searchChips.place_query.trim();
-          chips.push({ id: 'place', label: q.length > 20 ? `${q.slice(0, 20)}…` : q, icon: 'place' });
-        }
-        return (
-          <ActiveFilterChips
-            chips={chips}
-            onRemove={(id) => {
-              if (id === 'location') handleSearch({ ...searchChips, center_place: undefined, radius_km: undefined }, defaultFilters);
-              else if (id === 'specialty') handleSearch({ ...searchChips, specialty: undefined }, defaultFilters);
-              else if (id === 'rating') handleSearch(searchChips, { ...defaultFilters, min_rating: '' });
-              else if (id === 'place') handleSearch({ ...searchChips, place_query: undefined }, defaultFilters);
-            }}
-            onClearAll={() => handleSearch(
-              { city: undefined, country: 'India', region: searchChips.region || 'India', specialty: undefined, center_place: undefined, radius_km: undefined, place_query: undefined },
-              defaultFilters
-            )}
-            onOpenFilter={() => filterDrawer?.openDrawer()}
-          />
-        );
-      })()}
+      {/* Active filter chips: mobile only (desktop shows them in toolbar) */}
+      <div className="md:hidden border-b border-slate-200/80 bg-white/95 px-[var(--edge-padding)] py-2">
+        <ActiveFilterChips
+          chips={activeFilterChips}
+          onRemove={onRemoveFilterChip}
+          onClearAll={onClearAllFilterChips}
+          onOpenFilter={() => filterDrawer?.openDrawer()}
+        />
+      </div>
       <div className="flex-1 min-w-0 w-full max-w-screen-xl mx-auto px-[var(--edge-padding)] md:px-[var(--space-6)] py-[var(--space-4)] overflow-x-hidden">
         {leads.length > 0 && (
           <div className="py-[var(--space-4)] mb-[var(--space-2)]">
@@ -592,6 +620,20 @@ export function Dashboard() {
                 <span className="text-slate-500"> · {searchChips.specialty} in {searchChips.city || searchChips.country}</span>
               )}
             </p>
+            {broadSearchBanner && (
+              <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[var(--radius-card)] border border-amber-200 bg-amber-50 px-4 py-3 text-sm">
+                <span className="text-amber-800">
+                  Showing top {broadSearchBanner.limit} results. Add a <strong>specialty</strong> to narrow your search further (optional).
+                </span>
+                <button
+                  type="button"
+                  onClick={() => filterDrawer?.openDrawer()}
+                  className="shrink-0 font-medium text-amber-800 underline hover:no-underline focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 rounded"
+                >
+                  Add specialty
+                </button>
+              </div>
+            )}
           </div>
         )}
         {error && <div className="mb-[var(--space-4)] rounded-[var(--radius-card)] bg-red-100 p-[var(--space-4)] text-sm text-red-700">{error}</div>}

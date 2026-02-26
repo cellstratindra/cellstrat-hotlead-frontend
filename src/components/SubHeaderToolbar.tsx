@@ -2,6 +2,7 @@ import { X, MoreVertical, Save, BarChart3, UserPlus, MapPin, ChevronRight, Spark
 import { Link } from 'react-router-dom';
 import { ExportCsvButton } from './ExportCsvButton';
 import { SearchRibbon } from './SearchRibbon';
+import { ActiveFilterChips, type ActiveFilterChip } from './ActiveFilterChips';
 import { useGeo } from '../contexts/GeoContext';
 import type { HotLead } from '../types/leads';
 import type { SearchChips, SearchFilters } from './SearchBarWithChips';
@@ -51,6 +52,10 @@ export interface SubHeaderToolbarProps {
   searchLoading?: boolean;
   searchChips?: Partial<SearchChips>;
   searchFilters?: Partial<SearchFilters>;
+  /** Active search chips to show beside ribbon (remove triggers search without that filter) */
+  activeFilterChips?: ActiveFilterChip[];
+  onRemoveFilterChip?: (id: string) => void;
+  onClearAllFilterChips?: () => void;
 }
 
 export function SubHeaderToolbar({
@@ -81,6 +86,9 @@ export function SubHeaderToolbar({
   searchLoading = false,
   searchChips = {},
   searchFilters = {},
+  activeFilterChips = [],
+  onRemoveFilterChip,
+  onClearAllFilterChips,
 }: SubHeaderToolbarProps) {
   const geo = useGeo();
   const basePoint = geo?.basePoint ?? null;
@@ -131,6 +139,16 @@ export function SubHeaderToolbar({
               initialChips={searchChips}
               initialFilters={searchFilters}
             />
+            {activeFilterChips.length > 0 && onRemoveFilterChip && onClearAllFilterChips && (
+              <div className="hidden lg:flex items-center gap-2 shrink-0 border-l border-slate-200 pl-2 self-stretch">
+                <ActiveFilterChips
+                  chips={activeFilterChips}
+                  onRemove={onRemoveFilterChip}
+                  onClearAll={onClearAllFilterChips}
+                  onOpenFilter={onOpenFilter}
+                />
+              </div>
+            )}
             <button
               type="button"
               onClick={onOpenFilter}

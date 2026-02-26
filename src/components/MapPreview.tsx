@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
+import { API_BASE } from '../api/client'
 
 interface MapPreviewProps {
-  /** Static map image URL from backend */
+  /** Static map image URL from backend (may be relative e.g. /api/leads/static-map?lat=...) */
   staticMapUrl: string | null
   /** For fallback when no map */
   name?: string
@@ -36,6 +37,9 @@ export function MapPreview({
 }: MapPreviewProps) {
   const hasLocation = staticMapUrl || (latitude != null && longitude != null)
   const mapsUrl = buildMapsUrl(placeId ?? null, latitude, longitude)
+  const imgSrc = staticMapUrl?.startsWith('/')
+    ? `${API_BASE.replace(/\/$/, '')}${staticMapUrl}`
+    : staticMapUrl
 
   if (!hasLocation) {
     return (
@@ -48,9 +52,9 @@ export function MapPreview({
     )
   }
 
-  const content: ReactNode = staticMapUrl ? (
+  const content: ReactNode = imgSrc ? (
     <img
-      src={staticMapUrl}
+      src={imgSrc}
       alt={`Map location for ${name ?? 'clinic'}`}
       loading="lazy"
       className="w-full h-full object-cover"

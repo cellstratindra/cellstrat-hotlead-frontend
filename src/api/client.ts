@@ -76,6 +76,9 @@ function normalizeLead(raw: Record<string, unknown>): HotLead {
     address: raw?.address != null ? String(raw.address) : null,
     place_types: Array.isArray(raw?.place_types) ? (raw.place_types as string[]) : undefined,
     static_map_url: raw?.static_map_url != null ? String(raw.static_map_url) : null,
+    photo_urls: Array.isArray(raw?.photo_urls)
+      ? (raw.photo_urls as string[]).filter((u) => typeof u === "string")
+      : [],
     website_url: raw?.website_url != null ? String(raw.website_url) : null,
     owner_source: raw?.owner_source != null ? String(raw.owner_source) : null,
     owner_confidence: raw?.owner_confidence != null ? Number(raw.owner_confidence) : null,
@@ -281,6 +284,11 @@ export interface SavedLead {
   contact_email?: string | null
   director_name?: string | null
   assigned_to?: string | null
+  static_map_url?: string | null
+  photo_urls?: string[]
+  owner_source?: string | null
+  owner_confidence?: number | null
+  website_url?: string | null
 }
 
 export interface LeadUpdateParams {
@@ -330,6 +338,9 @@ function normalizeSavedLead(raw: Record<string, unknown>): SavedLead {
     address: raw?.address != null ? String(raw.address) : null,
     place_types: Array.isArray(raw?.place_types) ? (raw.place_types as string[]) : undefined,
     static_map_url: raw?.static_map_url != null ? String(raw.static_map_url) : null,
+    photo_urls: Array.isArray(raw?.photo_urls)
+      ? (raw.photo_urls as string[]).filter((u) => typeof u === "string")
+      : [],
   }
 }
 
@@ -858,9 +869,13 @@ export async function searchLeads(params: SearchParams): Promise<SearchResponse>
           : res.statusText
     throw new Error(message || `Search failed: ${res.status}`)
   }
-  const data = (await res.json()) as { leads?: unknown[] }
+  const data = (await res.json()) as { leads?: unknown[]; results_limited_broad_search?: boolean; results_limit_applied?: number }
   const leads = Array.isArray(data?.leads) ? data.leads.map((l) => normalizeLead(l as Record<string, unknown>)) : []
-  return { leads }
+  return {
+    leads,
+    results_limited_broad_search: data.results_limited_broad_search ?? false,
+    results_limit_applied: data.results_limit_applied ?? undefined,
+  }
 }
 
 export interface CoverageResponse {

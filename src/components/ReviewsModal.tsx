@@ -10,7 +10,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend,
   Tooltip,
 } from 'recharts'
 import type { HotLead, ReviewChatScope, ReviewInsightsResponse, ReviewWithFlags } from '../types/leads'

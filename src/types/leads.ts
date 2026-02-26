@@ -42,6 +42,8 @@ export interface HotLead {
   match_band?: string | null
   /** Static map image URL (when lat/lng present) */
   static_map_url?: string | null
+  /** Place photo URLs (may be relative /api/leads/place-photo?reference=...) */
+  photo_urls?: string[]
   contact_email?: string | null
   director_name?: string | null
   website_url?: string | null
@@ -51,6 +53,10 @@ export interface HotLead {
 
 export interface SearchResponse {
   leads: HotLead[]
+  /** True when search was city/country-only and results were capped (e.g. top 20) */
+  results_limited_broad_search?: boolean
+  /** Limit applied when broad (e.g. 20) */
+  results_limit_applied?: number
 }
 
 export interface ReviewInsightsResponse {

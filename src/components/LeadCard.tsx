@@ -6,6 +6,7 @@ import type { HotLead } from '../types/leads'
 import { ReviewsModal } from './ReviewsModal'
 import { TeamDispatchPopover } from './TeamDispatchPopover'
 import { explainScore, type AssignableUser } from '../api/client'
+import { API_BASE } from '../api/client'
 
 /** Extract neighborhood/area from Google Places formatted address (e.g. "123 St, Indiranagar, Bengaluru, ..." -> "Indiranagar"). */
 function extractAreaFromAddress(address?: string | null): string | null {
@@ -14,6 +15,26 @@ function extractAreaFromAddress(address?: string | null): string | null {
   if (parts.length >= 3) return parts[1]
   if (parts.length >= 2) return parts[0]
   return null
+}
+
+/** Resolve lead image URL for tile: photo or static map; prepend API_BASE if path is relative. Use smaller dimensions for faster load. */
+function leadTileImageUrl(lead: HotLead): string | null {
+  const photo = lead.photo_urls?.[0]
+  const mapUrl = lead.static_map_url
+  let url = photo || mapUrl || null
+  if (!url) return null
+  if (!url.startsWith('http')) {
+    const base = API_BASE.replace(/\/$/, '')
+    url = url.startsWith('/') ? `${base}${url}` : `${base}/${url}`
+  }
+  // Request smaller tile size for faster load (backend proxy accepts w/h and maxwidth)
+  if (url.includes('/api/leads/static-map') || url.includes('static-map')) {
+    url = url.replace(/w=\d+/, 'w=320').replace(/h=\d+/, 'h=160')
+  }
+  if (url.includes('/api/leads/place-photo') || url.includes('place-photo')) {
+    url = url.replace(/maxwidth=\d+/, 'maxwidth=320')
+  }
+  return url
 }
 
 /** Distance from base point (when Base Point is set) */
@@ -181,9 +202,33 @@ export function LeadCard({
   const reviewCount = lead.review_count ?? 0
   const reach = lead.estimated_monthly_patients != null ? `${(lead.estimated_monthly_patients / 1000).toFixed(0)}k/mo` : null
   const budget = lead.estimated_budget_tier ?? null
+  const tileImageUrl = leadTileImageUrl(lead)
+  const [tileImageFailed, setTileImageFailed] = useState(false)
+  const showTileImage = tileImageUrl && !tileImageFailed
 
   const cardContent = (
     <div className="flex flex-col gap-[var(--space-2)]">
+      {/* Lead image: place photo or static map (only when backend provides one) */}
+      {tileImageUrl ? (
+        showTileImage ? (
+          <div className="rounded-lg overflow-hidden bg-slate-100 -mx-5 -mt-5 mb-[var(--space-2)] h-32 flex-shrink-0">
+            <img
+              src={tileImageUrl}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              fetchPriority="low"
+              className="w-full h-full object-cover"
+              onError={() => setTileImageFailed(true)}
+            />
+          </div>
+        ) : (
+          <div className="rounded-lg overflow-hidden bg-slate-100 -mx-5 -mt-5 mb-[var(--space-2)] h-20 flex-shrink-0 flex items-center justify-center text-slate-400 text-xs" aria-hidden>
+            Image unavailable
+          </div>
+        )
+      ) : null}
+
       {/* Header strip: 32px, distance left + similarity right (only when not anchor) */}
       {!isAnchor && (distance != null || showSimilarity) && (
         <div className="flex items-center justify-between px-4 py-2 bg-slate-50/80 border-b border-slate-100 h-9 -mt-5 -mx-5 mb-[var(--space-2)] rounded-t-[var(--radius-card)]">

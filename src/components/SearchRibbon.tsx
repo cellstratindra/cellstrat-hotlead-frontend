@@ -186,6 +186,15 @@ export function SearchRibbon({
           aria-label="Radius in km"
         />
         <span className="text-sm font-medium text-slate-700 tabular-nums whitespace-nowrap">{radiusKm} km</span>
+        {locationMode === 'gps' && geo?.clearBasePoint && (
+          <button
+            type="button"
+            onClick={() => geo.clearBasePoint()}
+            className="text-xs text-slate-500 hover:text-slate-700 underline focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-1 rounded focus:outline-none"
+          >
+            Use city instead
+          </button>
+        )}
       </div>
 
       <button
